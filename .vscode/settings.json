@@ -1,0 +1,15 @@
+{
+    "cSpell.words": [
+        "asyncpg",
+        "dotenv",
+        "Laptrinhai",
+        "Mezon",
+        "onupdate",
+        "poolclass",
+        "repr",
+        "rwmodel",
+        "scopefunc",
+        "sessionmaker",
+        "sqlalchemy"
+    ]
+}
