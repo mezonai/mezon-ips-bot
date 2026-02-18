@@ -17,7 +17,6 @@ class Container(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(
         modules=[
             "app.api.v1.health",
-            "app.api.v1.gold_price",
             "app.api.v1.bot",
         ]
     )
