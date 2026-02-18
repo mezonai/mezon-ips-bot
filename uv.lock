@@ -454,7 +454,7 @@ requires-dist = [
     { name = "dependency-injector", specifier = ">=4.48.2" },
     { name = "fastapi", specifier = ">=0.123.2" },
     { name = "greenlet", specifier = ">=3.2.4" },
-    { name = "mezon-sdk", specifier = "==1.6.17" },
+    { name = "mezon-sdk", specifier = "==1.6.18" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "sqlalchemy", specifier = ">=2.0.44" },
@@ -530,7 +530,7 @@ wheels = [
 
 [[package]]
 name = "mezon-sdk"
-version = "1.6.17"
+version = "1.6.18"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -543,9 +543,9 @@ dependencies = [
     { name = "tenacity" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1c/2c/232a9970820f19c70f51114d47e51307e0edae988b8faa1c31b2d19d51a7/mezon_sdk-1.6.17.tar.gz", hash = "sha256:1e5ecff25109bef320f73fae4bce84cde96a957da114e8837c874b1a0b03f44c", size = 144176, upload-time = "2026-02-18T00:26:50.351Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/43/fa994f88e1f6c4abeb7df3e15d149d569cf6d8e5d30477bd81bf6f1e9d13/mezon_sdk-1.6.18.tar.gz", hash = "sha256:fcdc9c050d15273bc2fce279d15e2ae4819d09715069d3b4505d99f8e2927230", size = 144738, upload-time = "2026-02-18T03:53:23.13Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5f/81/00f6c78048a938d4de1c35d04940101de3713b8eabf82a0c7e85a5538e0c/mezon_sdk-1.6.17-py3-none-any.whl", hash = "sha256:b7f81c39ece905ba900ed9241ea91f658a050b9bb01f5e02cdbd8a71b1889e65", size = 160593, upload-time = "2026-02-18T00:26:49.395Z" },
+    { url = "https://files.pythonhosted.org/packages/30/0f/d71d32515dc0f5abb61a49721f533746a1972c349903d28b4d29289026bb/mezon_sdk-1.6.18-py3-none-any.whl", hash = "sha256:671634aa664f1889de9318416391989ac5bfb38ca64103a2f7b3ead8c222dc3e", size = 161057, upload-time = "2026-02-18T03:53:21.761Z" },
 ]
 
 [[package]]

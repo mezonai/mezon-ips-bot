@@ -31,7 +31,7 @@ class Container(containers.DeclarativeContainer):
         client_id=app_settings.mezon_client_id,
         api_key=app_settings.mezon_api_key,
         enable_logging=True,
-        log_level=logging.INFO,
+        log_level=logging.DEBUG,
     )
 
     # Repositories
