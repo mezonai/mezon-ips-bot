@@ -8,6 +8,7 @@ from app.database.repositories.gold_price import GoldPriceRepository
 @dataclass
 class GoldPriceData:
     """Data class for gold price information."""
+
     gold_type: str
     buy_price: float
     sell_price: float
@@ -29,8 +30,7 @@ class GoldPriceService:
             price_date = date.today()
 
         gold_price = await self._repository.get_gold_price_by_date_and_type(
-            price_date=price_date,
-            gold_type=gold_type.upper()
+            price_date=price_date, gold_type=gold_type.upper()
         )
 
         if gold_price is None:
@@ -41,7 +41,7 @@ class GoldPriceService:
             buy_price=gold_price.buy_price,
             sell_price=gold_price.sell_price,
             date=gold_price.date,
-            location=gold_price.location
+            location=gold_price.location,
         )
 
     async def get_all_gold_prices(
@@ -52,8 +52,7 @@ class GoldPriceService:
             price_date = date.today()
 
         gold_prices = await self._repository.get_gold_prices_by_date(
-            price_date=price_date,
-            location=location
+            price_date=price_date, location=location
         )
 
         return [
@@ -62,7 +61,7 @@ class GoldPriceService:
                 buy_price=gp.buy_price,
                 sell_price=gp.sell_price,
                 date=gp.date,
-                location=gp.location
+                location=gp.location,
             )
             for gp in gold_prices
         ]
@@ -79,7 +78,7 @@ class GoldPriceService:
                 buy_price=gp.buy_price,
                 sell_price=gp.sell_price,
                 date=gp.date,
-                location=gp.location
+                location=gp.location,
             )
             for gp in gold_prices
         ]

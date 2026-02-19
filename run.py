@@ -7,10 +7,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Run the Laptrinhai Mezon Bot server"
-    )
+    parser = argparse.ArgumentParser(description="Run the Laptrinhai Mezon Bot server")
     parser.add_argument(
         "--host",
         type=str,

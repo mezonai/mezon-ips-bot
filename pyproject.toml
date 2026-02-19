@@ -10,7 +10,7 @@ dependencies = [
     "dependency-injector>=4.48.2",
     "fastapi>=0.123.2",
     "greenlet>=3.2.4",
-    "mezon-sdk==1.6.18",
+    "mezon-sdk==1.6.19",
     "pydantic-settings>=2.12.0",
     "python-dotenv>=1.2.1",
     "sqlalchemy>=2.0.44",

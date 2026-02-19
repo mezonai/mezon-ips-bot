@@ -2,7 +2,9 @@ from typing import Any
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 import dotenv
+
 dotenv.load_dotenv(override=True)
+
 
 class AppSettings(BaseSettings):
     model_config = ConfigDict(
@@ -25,7 +27,6 @@ class AppSettings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     jwt_token_prefix: str = "bearer"
     allowed_hosts: list[str] = ["*"]
-
 
     app_env: str
     # Database settings

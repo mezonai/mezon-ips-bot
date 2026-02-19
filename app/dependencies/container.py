@@ -1,3 +1,4 @@
+from app.services.llm.service import LLMService
 from dependency_injector import containers, providers
 from mezon.client import MezonClient
 import logging
@@ -8,6 +9,7 @@ from app.database.repositories.gold_price import GoldPriceRepository
 from app.services.bot.service import MezonBotService
 from app.services.bot.handler_manager import HandlerManager
 from app.services.bot.handlers import GoldPriceHandler
+from app.services.bot.handlers.llm import LLMHandler
 from app.services.gold_price.service import GoldPriceService
 
 
@@ -45,12 +47,16 @@ class Container(containers.DeclarativeContainer):
         GoldPriceService,
         gold_price_repository=gold_price_repository,
     )
+    llm_service = providers.Singleton(
+        LLMService,
+    )
 
     mezon_bot_service = providers.Factory(
         MezonBotService,
         settings=app_settings,
         mezon_client=mezon_client,
         gold_price_service=gold_price_service,
+        llm_service=llm_service,
     )
 
     # Handlers
@@ -60,10 +66,17 @@ class Container(containers.DeclarativeContainer):
         gold_price_service=gold_price_service,
     )
 
+    llm_handler = providers.Singleton(
+        LLMHandler,
+        client=mezon_client,
+        llm_service=llm_service,
+    )
+
     handler_manager = providers.Singleton(
         HandlerManager,
         handlers=providers.List(
             gold_price_handler,
+            llm_handler,
         ),
         client_id=app_settings.mezon_client_id,
     )

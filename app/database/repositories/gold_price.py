@@ -17,8 +17,7 @@ class GoldPriceRepository(BaseRepository):
         async with self._get_session() as session:
             result = await session.execute(
                 select(GoldPrice).where(
-                    GoldPrice.date == price_date,
-                    GoldPrice.gold_type == gold_type
+                    GoldPrice.date == price_date, GoldPrice.gold_type == gold_type
                 )
             )
             return result.scalars().first()
@@ -30,15 +29,12 @@ class GoldPriceRepository(BaseRepository):
         async with self._get_session() as session:
             result = await session.execute(
                 select(GoldPrice).where(
-                    GoldPrice.date == price_date,
-                    GoldPrice.location == location
+                    GoldPrice.date == price_date, GoldPrice.location == location
                 )
             )
             return result.scalars().all()
 
-    async def get_latest_gold_prices(
-        self, location: str = "TPHCM"
-    ) -> List[GoldPrice]:
+    async def get_latest_gold_prices(self, location: str = "TPHCM") -> List[GoldPrice]:
         """Get the latest gold prices for a location."""
         async with self._get_session() as session:
             # Get the most recent date
@@ -46,7 +42,7 @@ class GoldPriceRepository(BaseRepository):
             result = await session.execute(
                 select(GoldPrice).where(
                     GoldPrice.location == location,
-                    GoldPrice.date == subquery.scalar_subquery()
+                    GoldPrice.date == subquery.scalar_subquery(),
                 )
             )
             return result.scalars().all()

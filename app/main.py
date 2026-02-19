@@ -31,10 +31,13 @@ async def lifespan(app: FastAPI):
 
     await mezon_client.disconnect()
 
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title=app_settings.app_name,
-        openapi_url=f"{app_settings.api_v1_prefix}/openapi.json" if app_settings.app_env == "dev" else None,
+        openapi_url=f"{app_settings.api_v1_prefix}/openapi.json"
+        if app_settings.app_env == "dev"
+        else None,
         lifespan=lifespan,
     )
 
