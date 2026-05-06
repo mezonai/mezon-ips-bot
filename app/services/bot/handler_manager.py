@@ -28,7 +28,7 @@ class HandlerManager:
             return
 
         try:
-            message_content = json.loads(message.content)
+            message_content = message.content
             content: str = message_content.get("t", "").strip()
             if not content:
                 return
