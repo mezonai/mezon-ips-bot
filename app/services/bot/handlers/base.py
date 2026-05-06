@@ -110,7 +110,11 @@ def parse_args(
 
     Returns a dict of kwargs on success, or an error message string on failure.
     """
-    rest = raw_content[len(cmd) :].strip() if raw_content.startswith(cmd) else raw_content.strip()
+    rest = (
+        raw_content[len(cmd) :].strip()
+        if raw_content.startswith(cmd)
+        else raw_content.strip()
+    )
     tokens = rest.split() if rest else []
     kwargs: dict[str, Any] = {}
     token_idx = 0

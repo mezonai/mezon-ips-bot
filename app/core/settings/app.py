@@ -35,6 +35,7 @@ class AppSettings(BaseSettings):
     # Mezon Bot settings
     mezon_client_id: str
     mezon_api_key: str
+    mezon_bot_require_mention: bool = False
 
     @property
     def fastapi_kwargs(self) -> dict[str, Any]:

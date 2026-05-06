@@ -79,4 +79,5 @@ class Container(containers.DeclarativeContainer):
             llm_handler,
         ),
         client_id=app_settings.mezon_client_id,
+        require_mention=app_settings.mezon_bot_require_mention,
     )

@@ -19,7 +19,11 @@ class GoldPriceHandler(BaseMessageHandler):
 
     @command("*gold")
     async def handle_gold(
-        self, message: api_pb2.ChannelMessage, gold_type: str | None = None, location: str | None = None, date: str | None = None
+        self,
+        message: api_pb2.ChannelMessage,
+        gold_type: str | None = None,
+        location: str | None = None,
+        date: str | None = None,
     ) -> None:
         """Get today's gold prices.
 
@@ -39,8 +43,12 @@ class GoldPriceHandler(BaseMessageHandler):
                 else:
                     price_date = gold_price.date.strftime("%d/%m/%Y")
                     response = f"💰 Giá vàng {gold_type} ({price_date}):\n"
-                    response += f"Mua vào: {self._format_price(gold_price.buy_price)} VNĐ\n"
-                    response += f"Bán ra: {self._format_price(gold_price.sell_price)} VNĐ"
+                    response += (
+                        f"Mua vào: {self._format_price(gold_price.buy_price)} VNĐ\n"
+                    )
+                    response += (
+                        f"Bán ra: {self._format_price(gold_price.sell_price)} VNĐ"
+                    )
             else:
                 gold_prices = await self.gold_price_service.get_all_gold_prices()
 
