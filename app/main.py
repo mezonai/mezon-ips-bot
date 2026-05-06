@@ -22,6 +22,7 @@ async def lifespan(app: FastAPI):
 
     handler_manager = container.handler_manager()
     mezon_client.on_channel_message(handler_manager.handle_channel_message)
+    mezon_client.on_message_button_clicked(handler_manager.handle_button_click)
 
     app.state.container = container
     app.state.mezon_client = mezon_client

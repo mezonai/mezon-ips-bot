@@ -1,7 +1,7 @@
 [project]
-name = "laptrinhai-mezon-bot"
+name = "mezon-ips-bot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Mezon Bot for IPS"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

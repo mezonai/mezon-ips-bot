@@ -238,3 +238,25 @@ class BaseMessageHandler:
         except Exception as e:
             self.logger.error("Failed to reply to message: %s", e)
             return False
+
+    async def edit_message(
+        self,
+        channel_id: int,
+        message_id: int,
+        response_text: str,
+        embeds: list[InteractiveMessageProps] | None = None,
+        components: list[MessageActionRow] | None = None,
+    ) -> bool:
+        """Edit an existing message (e.g. update form after submission)."""
+        try:
+            channel = await self.client.channels.fetch(channel_id)
+            msg = await channel.messages.fetch(message_id)
+            await msg.update(
+                content=ChannelMessageContent(
+                    text=response_text, embed=embeds, components=components
+                )
+            )
+            return True
+        except Exception as e:
+            self.logger.error("Failed to edit message: %s", e)
+            return False

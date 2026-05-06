@@ -1,13 +1,14 @@
 # Laptrinhai Mezon Bot
 
-A FastAPI-based bot template that connects to [Mezon](https://mezon.vn) and handles channel messages via a pluggable handler system. Includes an example **gold price** handler that responds to `!gold` commands with Vietnamese gold prices (SJC, PNJ, etc.).
+A FastAPI-based bot template that connects to [Mezon](https://mezon.vn) and handles channel messages via a pluggable handler system. Supports **interactive forms** with buttons, dropdowns, date pickers, and text inputs — plus an example **gold price** handler.
 
 ## Features
 
 - **Mezon integration** — Connects via [mezon-sdk](https://pypi.org/project/mezon-sdk/), listens for channel messages and routes them to handlers
+- **Interactive forms** — `InteractiveBuilder` + `ButtonBuilder` for GUI-style commands (add, edit, delete with form submissions)
 - **Handler-based architecture** — Add new commands by implementing `BaseMessageHandler` and registering in the container
 - **FastAPI** — REST API with health check and bot status endpoints
-- **PostgreSQL** — Async SQLAlchemy + Alembic for gold price (and other) data
+- **PostgreSQL** — Async SQLAlchemy + Alembic for data persistence
 - **Dependency injection** — `dependency-injector` for wiring services, repositories, and handlers
 
 ## Prerequisites
@@ -93,6 +94,12 @@ The app will:
 | `!gold` | Today’s gold prices (TPHCM) |
 | `!gold SJC` | SJC gold price only |
 | `!gold PNJ` | PNJ gold price only |
+| `*professional` | Quản lý chuyên gia (xem danh sách lệnh) |
+| `*professional list` | Danh sách chuyên gia |
+| `*professional add` | Thêm chuyên gia mới |
+| `*professional edit` | Sửa thông tin chuyên gia |
+| `*professional delete` | Xóa chuyên gia |
+| `*professional find` | Tìm kiếm chuyên gia |
 
 ## Project structure
 
@@ -104,8 +111,10 @@ app/
 ├── dependencies/        # DI container (container.py)
 ├── schemas/             # Pydantic schemas
 ├── services/
-│   ├── bot/             # Mezon bot: HandlerManager, handlers (gold_price), base handler
-│   └── gold_price/      # Gold price business logic
+│   ├── bot/             # Mezon bot: HandlerManager, handlers (gold_price, professional, llm)
+│   ├── gold_price/      # Gold price business logic
+│   ├── professional/    # Professional (expert) management service
+│   └── llm/             # LLM integration service
 ├── main.py              # FastAPI app + lifespan (Mezon login, handler wiring)
 run.py                   # CLI entry (uvicorn)
 ```

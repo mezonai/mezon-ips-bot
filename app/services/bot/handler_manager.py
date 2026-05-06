@@ -5,8 +5,10 @@ import logging
 import re
 
 from mezon.protobuf.api import api_pb2
+from mezon.protobuf.rtapi import realtime_pb2
 
 from .handlers.base import BaseMessageHandler, CommandInfo, parse_args
+from .handlers.professional import ProfessionalHandler
 
 
 COMMAND_PREFIXS = "*!/@"
@@ -122,3 +124,19 @@ class HandlerManager:
             self.logger.error("Failed to parse message content: %s", message.content)
         except Exception as e:
             self.logger.error("Error handling message: %s", e, exc_info=True)
+
+    async def handle_button_click(
+        self, event: realtime_pb2.MessageButtonClicked
+    ) -> None:
+        """Route button click events to the appropriate handler."""
+        try:
+            # Find the ProfessionalHandler for button click events
+            for handler in self._command_map.values():
+                h = handler[0]
+                if isinstance(h, ProfessionalHandler) and hasattr(
+                    h, "handle_button_click"
+                ):
+                    await h.handle_button_click(event)
+                    return
+        except Exception as e:
+            self.logger.error("Error handling button click: %s", e, exc_info=True)

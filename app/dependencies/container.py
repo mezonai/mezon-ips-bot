@@ -6,11 +6,14 @@ import logging
 from app.core.settings.app import app_settings
 from app.database.connect import async_session_factory
 from app.database.repositories.gold_price import GoldPriceRepository
+from app.database.repositories.professional import ProfessionalRepository
 from app.services.bot.service import MezonBotService
 from app.services.bot.handler_manager import HandlerManager
 from app.services.bot.handlers import GoldPriceHandler
 from app.services.bot.handlers.llm import LLMHandler
+from app.services.bot.handlers.professional import ProfessionalHandler
 from app.services.gold_price.service import GoldPriceService
+from app.services.professional.service import ProfessionalService
 
 
 class Container(containers.DeclarativeContainer):
@@ -42,6 +45,11 @@ class Container(containers.DeclarativeContainer):
         session_factory=db_session_factory,
     )
 
+    professional_repository = providers.Singleton(
+        ProfessionalRepository,
+        session_factory=db_session_factory,
+    )
+
     # Services
     gold_price_service = providers.Singleton(
         GoldPriceService,
@@ -49,6 +57,10 @@ class Container(containers.DeclarativeContainer):
     )
     llm_service = providers.Singleton(
         LLMService,
+    )
+    professional_service = providers.Singleton(
+        ProfessionalService,
+        professional_repository=professional_repository,
     )
 
     mezon_bot_service = providers.Factory(
@@ -72,11 +84,18 @@ class Container(containers.DeclarativeContainer):
         llm_service=llm_service,
     )
 
+    professional_handler = providers.Singleton(
+        ProfessionalHandler,
+        client=mezon_client,
+        professional_service=professional_service,
+    )
+
     handler_manager = providers.Singleton(
         HandlerManager,
         handlers=providers.List(
             gold_price_handler,
             llm_handler,
+            professional_handler,
         ),
         client_id=app_settings.mezon_client_id,
         require_mention=app_settings.mezon_bot_require_mention,
