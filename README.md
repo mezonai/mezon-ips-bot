@@ -91,15 +91,18 @@ The app will:
 
 | Command | Description |
 |---------|-------------|
-| `!gold` | Today’s gold prices (TPHCM) |
-| `!gold SJC` | SJC gold price only |
-| `!gold PNJ` | PNJ gold price only |
-| `*professional` | Quản lý chuyên gia (xem danh sách lệnh) |
-| `*professional list` | Danh sách chuyên gia |
-| `*professional add` | Thêm chuyên gia mới |
-| `*professional edit` | Sửa thông tin chuyên gia |
-| `*professional delete` | Xóa chuyên gia |
-| `*professional find` | Tìm kiếm chuyên gia |
+| `*expert` | Quản lý chuyên gia (xem danh sách lệnh) |
+| `*expert list` | Danh sách chuyên gia |
+| `*expert add` | Thêm chuyên gia mới |
+| `*expert edit` | Sửa thông tin chuyên gia |
+| `*expert delete` | Xóa chuyên gia |
+| `*expert find` | Tìm kiếm chuyên gia |
+| `*program` | Quản lý chương trình/dự án (xem danh sách lệnh) |
+| `*program list` | Danh sách chương trình |
+| `*program add` | Thêm chương trình mới |
+| `*program find <mã>` | Tìm chương trình theo mã |
+| `*program edit <mã>` | Sửa thông tin chương trình |
+| `*program delete <mã>` | Xóa chương trình |
 
 ## Project structure
 
@@ -111,9 +114,9 @@ app/
 ├── dependencies/        # DI container (container.py)
 ├── schemas/             # Pydantic schemas
 ├── services/
-│   ├── bot/             # Mezon bot: HandlerManager, handlers (gold_price, professional, llm)
+│   ├── bot/             # Mezon bot: HandlerManager, handlers (gold_price, expert, llm)
 │   ├── gold_price/      # Gold price business logic
-│   ├── professional/    # Professional (expert) management service
+│   ├── expert/          # Expert management service
 │   └── llm/             # LLM integration service
 ├── main.py              # FastAPI app + lifespan (Mezon login, handler wiring)
 run.py                   # CLI entry (uvicorn)

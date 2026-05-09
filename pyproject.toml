@@ -7,9 +7,11 @@ requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.17.2",
     "asyncpg>=0.31.0",
+    "boto3>=1.35.0",
     "dependency-injector>=4.48.2",
     "fastapi>=0.123.2",
     "greenlet>=3.2.4",
+    "docxtpl>=0.18.0",
     "mezon-sdk>=1.8.1",
     "pydantic-settings>=2.12.0",
     "python-dotenv>=1.2.1",
@@ -17,7 +19,13 @@ dependencies = [
     "uvicorn>=0.38.0",
 ]
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
 [dependency-groups]
 dev = [
     "ruff>=0.14.7",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
 ]

@@ -8,7 +8,8 @@ from mezon.protobuf.api import api_pb2
 from mezon.protobuf.rtapi import realtime_pb2
 
 from .handlers.base import BaseMessageHandler, CommandInfo, parse_args
-from .handlers.professional import ProfessionalHandler
+from .handlers.expert import ExpertHandler
+from .handlers.program import ProgramHandler
 
 
 COMMAND_PREFIXS = "*!/@"
@@ -130,13 +131,12 @@ class HandlerManager:
     ) -> None:
         """Route button click events to the appropriate handler."""
         try:
-            # Find the ProfessionalHandler for button click events
+            # Try each handler that supports button clicks
             for handler in self._command_map.values():
                 h = handler[0]
-                if isinstance(h, ProfessionalHandler) and hasattr(
-                    h, "handle_button_click"
-                ):
+                if (isinstance(h, (ExpertHandler, ProgramHandler)) and
+                    hasattr(h, "handle_button_click")):
                     await h.handle_button_click(event)
-                    return
+                    # Continue to next handler - they will return early if not handling
         except Exception as e:
             self.logger.error("Error handling button click: %s", e, exc_info=True)

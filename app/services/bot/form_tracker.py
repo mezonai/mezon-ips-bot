@@ -11,8 +11,9 @@ from typing import Any
 class PendingForm:
     """Tracks an interactive form sent to a user."""
 
-    action: str  # "add", "edit", "delete_confirm", "select_prof"
-    professional_id: int | None = None
+    action: str  # "add", "edit", "delete_confirm", "select_prof", "create_contract", "add_activity", "edit_contract", "delete_contract_confirm"
+    expert_id: int | None = None
+    contract_id: int | None = None
     channel_id: int = 0
     user_id: int = 0
 
@@ -22,10 +23,11 @@ class FormStateTracker:
 
     def __init__(self) -> None:
         self._forms: dict[str, PendingForm] = {}  # composite key -> PendingForm
+        self._form_data: dict[str, dict[str, Any]] = {}  # message_id -> form data
 
     def register(self, action: str, prof_id: int | None = None) -> str:
         key = f"{action}:{prof_id}" if prof_id else action
-        self._forms[key] = PendingForm(action=action, professional_id=prof_id)
+        self._forms[key] = PendingForm(action=action, expert_id=prof_id)
         return key
 
     def lookup(self, key: str) -> PendingForm | None:
@@ -33,6 +35,18 @@ class FormStateTracker:
 
     def complete(self, key: str) -> PendingForm | None:
         return self._forms.pop(key, None)
+
+    def get_form_data(self, message_id: str) -> dict[str, Any]:
+        """Get form data for a message."""
+        return self._form_data.get(message_id, {})
+
+    def set_form_data(self, message_id: str, data: dict[str, Any]) -> None:
+        """Store form data for a message."""
+        self._form_data[message_id] = data
+
+    def clear_form_data(self, message_id: str) -> None:
+        """Clear form data for a message."""
+        self._form_data.pop(message_id, None)
 
     @staticmethod
     def parse_extra_data(extra_data: str) -> dict[str, Any]:

@@ -1,6 +1,6 @@
-FROM python:3.13-slim
+FROM python:3.13-slim AS builder
 
-WORKDIR /app
+WORKDIR /build
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -10,11 +10,25 @@ COPY pyproject.toml uv.lock ./
 
 RUN uv sync --frozen --no-dev
 
-# Copy app code
-COPY . .
+# --- Runtime stage ---
+FROM python:3.13-slim
 
-# Make sure the app venv is on PATH
+WORKDIR /app
+
+# Install system deps needed at runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy venv from builder
+COPY --from=builder /build/.venv /app/.venv
+
+# Copy app code
+COPY app/ ./app/
+COPY run.py alembic.ini ./
+
 ENV PATH="/app/.venv/bin:$PATH"
+ENV APP_ENV=prod
 
 EXPOSE 8000
 
