@@ -1838,24 +1838,27 @@ class ExpertHandler(BaseMessageHandler):
                 )
                 file_url = upload_result.url
 
-            # Send message with attachment
-            channel = await self.client.channels.fetch(event.channel_id)
-            await channel.send(
-                content=ChannelMessageContent(
-                    t=f"✅ Đã xuất file Word thành công!\n\n"
-                    f"📄 File: `{output_filename}`\n"
-                    f"Hợp đồng: **{contract.order_id}**\n"
-                    f"Chuyên gia: **{prof.pronoun} {prof.expert_name}**"
-                ),
-                attachments=[
-                    ApiMessageAttachment(
-                        filename=output_filename,
-                        url=file_url,
-                        filetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        size=os.path.getsize(output_path),
-                    )
-                ],
-            )
+            # Send message with attachment — guard against duplicate events
+            send_key = f"export_word:{event.message_id}:{contract_id}"
+            if send_key not in self._processed_activity_submits:
+                self._processed_activity_submits.add(send_key)
+                channel = await self.client.channels.fetch(event.channel_id)
+                await channel.send(
+                    content=ChannelMessageContent(
+                        t=f"✅ Đã xuất file Word thành công!\n\n"
+                        f"📄 File: `{output_filename}`\n"
+                        f"Hợp đồng: **{contract.order_id}**\n"
+                        f"Chuyên gia: **{prof.pronoun} {prof.expert_name}**"
+                    ),
+                    attachments=[
+                        ApiMessageAttachment(
+                            filename=output_filename,
+                            url=file_url,
+                            filetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            size=os.path.getsize(output_path),
+                        )
+                    ],
+                )
 
             # Edit original message to remove buttons
             await self.edit_message(
@@ -2058,25 +2061,28 @@ class ExpertHandler(BaseMessageHandler):
                 )
                 file_url = upload_result.url
 
-            # Send message with attachment
-            channel = await self.client.channels.fetch(event.channel_id)
-            await channel.send(
-                content=ChannelMessageContent(
-                    t=f"✅ Đã xuất biên bản nghiệm thu!\n\n"
-                    f"📄 File: `{output_filename}`\n"
-                    f"Hợp đồng: **{contract.order_id}**\n"
-                    f"Chuyên gia: **{prof.pronoun} {prof.expert_name}**\n"
-                    f"Hoạt động: {len(activities)}"
-                ),
-                attachments=[
-                    ApiMessageAttachment(
-                        filename=output_filename,
-                        url=file_url,
-                        filetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        size=os.path.getsize(output_path),
-                    )
-                ],
-            )
+            # Send message with attachment — guard against duplicate events
+            send_key = f"export_acceptance:{event.message_id}:{contract_id}"
+            if send_key not in self._processed_activity_submits:
+                self._processed_activity_submits.add(send_key)
+                channel = await self.client.channels.fetch(event.channel_id)
+                await channel.send(
+                    content=ChannelMessageContent(
+                        t=f"✅ Đã xuất biên bản nghiệm thu!\n\n"
+                        f"📄 File: `{output_filename}`\n"
+                        f"Hợp đồng: **{contract.order_id}**\n"
+                        f"Chuyên gia: **{prof.pronoun} {prof.expert_name}**\n"
+                        f"Hoạt động: {len(activities)}"
+                    ),
+                    attachments=[
+                        ApiMessageAttachment(
+                            filename=output_filename,
+                            url=file_url,
+                            filetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            size=os.path.getsize(output_path),
+                        )
+                    ],
+                )
 
             await self.edit_message(
                 event.channel_id,
