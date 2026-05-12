@@ -26,6 +26,7 @@ COPY --from=builder /build/.venv /app/.venv
 # Copy app code
 COPY app/ ./app/
 COPY run.py alembic.ini ./
+COPY template/ ./template/
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV APP_ENV=prod
