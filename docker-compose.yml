@@ -18,11 +18,29 @@ services:
   app:
     build: .
     env_file: .env
+    command: sh -c "python -m alembic upgrade head && python run.py --host 0.0.0.0 --port 8000 --reload"
     environment:
+      - APP_ENV=dev
       # Override localhost -> db service name for container networking
       - DB_URI=postgresql+asyncpg://postgres:postgres@db:5432/ips-bot
     ports:
       - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./run.py:/app/run.py
+      - ./alembic.ini:/app/alembic.ini
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       db:
         condition: service_healthy
