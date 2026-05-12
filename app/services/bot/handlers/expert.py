@@ -1314,15 +1314,18 @@ class ExpertHandler(BaseMessageHandler):
             )
 
             # Send activity form as a NEW message to avoid SDK merging old form data
-            form = self._build_activity_form(existing_count=0)
-            channel = await self.client.channels.fetch(event.channel_id)
-            await channel.send(
-                content=ChannelMessageContent(
-                    t="➕ Thêm hoạt động đầu tiên:",
-                    embed=[InteractiveMessageProps(**form.build())],
-                    components=self._build_activity_buttons(created.id),
-                ),
-            )
+            send_key = f"send_activity_form:{event.message_id}"
+            if send_key not in self._processed_activity_submits:
+                self._processed_activity_submits.add(send_key)
+                form = self._build_activity_form(existing_count=0)
+                channel = await self.client.channels.fetch(event.channel_id)
+                await channel.send(
+                    content=ChannelMessageContent(
+                        t="➕ Thêm hoạt động đầu tiên:",
+                        embed=[InteractiveMessageProps(**form.build())],
+                        components=self._build_activity_buttons(created.id),
+                    ),
+                )
         except Exception as e:
             self.logger.error("Error saving contract: %s", e, exc_info=True)
             await self.edit_message(
@@ -1497,15 +1500,18 @@ class ExpertHandler(BaseMessageHandler):
         )
 
         # Send new activity form as a NEW message to avoid SDK merging old form data
-        form = self._build_activity_form(existing_count=len(activities))
-        channel = await self.client.channels.fetch(event.channel_id)
-        await channel.send(
-            content=ChannelMessageContent(
-                t="➕ Thêm hoạt động mới:",
-                embed=[InteractiveMessageProps(**form.build())],
-                components=self._build_activity_buttons(contract_id),
-            ),
-        )
+        send_key = f"send_activity_form:{event.message_id}"
+        if send_key not in self._processed_activity_submits:
+            self._processed_activity_submits.add(send_key)
+            form = self._build_activity_form(existing_count=len(activities))
+            channel = await self.client.channels.fetch(event.channel_id)
+            await channel.send(
+                content=ChannelMessageContent(
+                    t="➕ Thêm hoạt động mới:",
+                    embed=[InteractiveMessageProps(**form.build())],
+                    components=self._build_activity_buttons(contract_id),
+                ),
+            )
 
     async def _handle_finalize_contract(
         self, event: realtime_pb2.MessageButtonClicked, contract_id: int
