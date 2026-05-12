@@ -47,7 +47,7 @@ class ContractActivity(RWModel, DateTimeModelMixin):
     activity_number = Column(String(2000), nullable=False)
     activity_name = Column(String(2000), nullable=False)
     budget = Column(String(2000), nullable=True)
-    working_days = Column(Integer, nullable=False, default=0)
+    working_days = Column(Float, nullable=False, default=0)
     rate = Column(Float, nullable=False, default=0)
     real_amount = Column(Float, nullable=False, default=0)
     contract_id = Column(

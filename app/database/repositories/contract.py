@@ -138,6 +138,20 @@ class ContractRepository(BaseRepository):
             await session.refresh(activity)
             return activity
 
+    async def get_activity_by_contract_and_number(
+        self, contract_id: int, activity_number: str
+    ) -> Optional[ContractActivity]:
+        """Get non-deleted activity by contract and activity number."""
+        async with self._get_session() as session:
+            result = await session.execute(
+                select(ContractActivity).where(
+                    ContractActivity.contract_id == contract_id,
+                    ContractActivity.activity_number == activity_number,
+                    ContractActivity.deleted_at.is_(None),
+                )
+            )
+            return result.scalars().first()
+
     async def get_activities_by_contract_id(
         self, contract_id: int
     ) -> List[ContractActivity]:

@@ -40,7 +40,7 @@ class ActivityData:
     activity_number: str
     activity_name: str
     budget: Optional[str] = None
-    working_days: int = 0
+    working_days: float = 0
     rate: float = 0
     real_amount: float = 0
     contract_id: int = 0
@@ -155,6 +155,13 @@ class ContractService:
         self, contract_id: int, data: ActivityData
     ) -> Optional[ActivityData]:
         """Add an activity to a contract."""
+        existing = await self._contract_repo.get_activity_by_contract_and_number(
+            contract_id,
+            data.activity_number,
+        )
+        if existing is not None:
+            raise ValueError("Hoạt động đã được lưu, không thể lưu trùng.")
+
         activity = ContractActivity(
             activity_number=data.activity_number,
             activity_name=data.activity_name,

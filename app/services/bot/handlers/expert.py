@@ -47,6 +47,7 @@ class ExpertHandler(BaseMessageHandler):
         self.program_service = program_service
         self.word_export_service = word_export_service
         self.s3_upload_service = s3_upload_service
+        self._processed_activity_submits: set[str] = set()
 
     def _build_buttons(
         self, buttons: list[tuple[str, str, ButtonMessageStyle]]
@@ -60,6 +61,11 @@ class ExpertHandler(BaseMessageHandler):
         return [
             MessageActionRow(components=[MessageComponent(**b) for b in bb.build()])
         ]
+
+    @staticmethod
+    def _format_working_days(working_days: float) -> str:
+        """Format working days without trailing .0."""
+        return f"{working_days:g}"
 
     def _build_form_buttons(
         self, save_btn_id: str = "save", cancel_btn_id: str = "cancel"
@@ -1343,6 +1349,16 @@ class ExpertHandler(BaseMessageHandler):
             return
 
         try:
+            submit_key = f"{event.message_id}:{contract_id}"
+            if submit_key in self._processed_activity_submits:
+                await self.edit_message(
+                    event.channel_id,
+                    event.message_id,
+                    "✅ Hoạt động đã được lưu trước đó.",
+                    components=[],
+                )
+                return
+
             contract = await self.contract_service.get_contract_by_id(contract_id)
             if not contract:
                 await self.edit_message(
@@ -1358,12 +1374,21 @@ class ExpertHandler(BaseMessageHandler):
             budget = extra_data.get("budget", "").strip()
 
             try:
-                working_days = int(float(extra_data.get("working_days", 0)))
+                working_days = float(str(extra_data.get("working_days", 0)).strip())
             except (ValueError, TypeError):
                 await self.edit_message(
                     event.channel_id,
                     event.message_id,
                     "❌ Số ngày làm việc không hợp lệ.",
+                    components=[],
+                )
+                return
+
+            if working_days <= 0:
+                await self.edit_message(
+                    event.channel_id,
+                    event.message_id,
+                    "❌ Số ngày làm việc phải lớn hơn 0.",
                     components=[],
                 )
                 return
@@ -1405,6 +1430,7 @@ class ExpertHandler(BaseMessageHandler):
             )
 
             await self.contract_service.add_activity(contract_id, activity_data)
+            self._processed_activity_submits.add(submit_key)
 
             # Clear form data
             form_tracker.clear_form_data(str(event.message_id))
@@ -1413,7 +1439,7 @@ class ExpertHandler(BaseMessageHandler):
                 event.channel_id,
                 event.message_id,
                 f"✅ Đã thêm hoạt động: **{activity_name}**\n"
-                f"Số ngày: {working_days} | Rate: {format_currency_vn(rate)} | Thành tiền: {format_currency_vn(real_amount)}\n\n"
+                f"Số ngày: {self._format_working_days(working_days)} | Rate: {format_currency_vn(rate)} | Thành tiền: {format_currency_vn(real_amount)}\n\n"
                 "Tiếp tục thêm hoạt động hoặc hoàn tất?",
                 components=self._build_after_activity_buttons(contract_id),
             )
@@ -1518,7 +1544,7 @@ class ExpertHandler(BaseMessageHandler):
 
         for act in activities:
             summary.append(
-                f"  • {act.activity_number}: {act.activity_name} - {act.working_days} ngày × {format_currency_vn(act.rate)} = {format_currency_vn(act.real_amount)}"
+                f"  • {act.activity_number}: {act.activity_name} - {self._format_working_days(act.working_days)} ngày × {format_currency_vn(act.rate)} = {format_currency_vn(act.real_amount)}"
             )
 
         summary.extend(
@@ -1629,7 +1655,7 @@ class ExpertHandler(BaseMessageHandler):
 
         for act in activities:
             lines.append(
-                f"  • {act.activity_number}: {act.activity_name} — {act.working_days} ngày × {format_currency_vn(act.rate)} = {format_currency_vn(act.real_amount)}"
+                f"  • {act.activity_number}: {act.activity_name} — {self._format_working_days(act.working_days)} ngày × {format_currency_vn(act.rate)} = {format_currency_vn(act.real_amount)}"
             )
 
         lines.extend(

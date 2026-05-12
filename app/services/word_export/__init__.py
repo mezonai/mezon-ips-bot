@@ -8,6 +8,11 @@ from app.services.expert.service import ExpertData
 from app.utils import number_to_vietnamese_text
 
 
+def format_working_days(working_days: float) -> str:
+    """Format working days without trailing .0."""
+    return f"{working_days:g}"
+
+
 class WordExportService:
     """Service for exporting contracts to Word documents using templates."""
 
@@ -73,7 +78,7 @@ class WordExportService:
                     "activity_number": activity.activity_number,
                     "activity_name": activity.activity_name,
                     "budget": activity.budget or "",
-                    "working_days": activity.working_days,
+                    "working_days": format_working_days(activity.working_days),
                     "rate": f"{activity.rate:,.0f}".replace(",", "."),
                     "real_amount": f"{activity.real_amount:,.0f}".replace(",", "."),
                     "real_amount_text": number_to_vietnamese_text(activity.real_amount),
@@ -180,7 +185,7 @@ class WordExportService:
                     "activity_number": activity.activity_number,
                     "activity_name": activity.activity_name,
                     "budget": activity.budget or "",
-                    "working_days": activity.working_days,
+                    "working_days": format_working_days(activity.working_days),
                     "rate": f"{activity.rate:,.0f}".replace(",", "."),
                     "real_amount": f"{activity.real_amount:,.0f}".replace(",", "."),
                     "real_amount_text": number_to_vietnamese_text(activity.real_amount),

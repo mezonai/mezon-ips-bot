@@ -145,6 +145,7 @@ def mock_contract_service():
     service.get_contracts_by_expert_id = AsyncMock()
     service.get_contracts_by_program_id = AsyncMock()
     service.get_contracts_by_year = AsyncMock()
+    service.has_contract_order_in_project = AsyncMock()
     service.add_activity = AsyncMock()
     service.delete_activity = AsyncMock()
     service.resolve_program_code = AsyncMock()

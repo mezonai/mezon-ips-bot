@@ -246,6 +246,13 @@ class TestBuildAcceptanceContext:
         assert context["activities"][0]["rate"] == "1.500.000"
         assert context["activities"][0]["real_amount"] == "4.500.000"
 
+    def test_context_activity_supports_fractional_working_days(self, sample_contract, sample_expert, sample_activities):
+        """Working days should preserve fractional values in export context."""
+        sample_activities[0].working_days = 4.5
+        service = WordExportService()
+        context = service._build_acceptance_context(sample_contract, sample_expert, sample_activities)
+        assert context["activities"][0]["working_days"] == "4.5"
+
     def test_context_expert_null_fields_default_to_empty_string(self, sample_contract, sample_expert, sample_activities):
         """Expert optional None fields should default to empty string."""
         expert_minimal = ExpertData(

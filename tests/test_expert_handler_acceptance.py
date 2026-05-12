@@ -397,3 +397,49 @@ class TestExpertLookupByCccdOrName:
 
         handler.edit_message.assert_called_once()
         assert "Đang sửa thông tin chuyên gia" in handler.edit_message.call_args[0][2]
+
+
+class TestSaveActivity:
+    """Test fractional working days handling."""
+
+    async def test_accepts_fractional_working_days(
+        self, handler, button_event, mock_contract_service, mock_contract
+    ):
+        mock_contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
+        mock_contract_service.get_activities_by_contract_id = AsyncMock(return_value=[])
+        mock_contract_service.add_activity = AsyncMock()
+
+        await handler._handle_save_activity(
+            button_event,
+            1,
+            {
+                "activity_name": "Review",
+                "budget": "1000000",
+                "working_days": "4.5",
+                "rate": "2000000",
+            },
+        )
+
+        saved_activity = mock_contract_service.add_activity.await_args.args[1]
+        assert saved_activity.working_days == 4.5
+        assert saved_activity.real_amount == 9000000.0
+        assert "Số ngày: 4.5" in handler.edit_message.call_args[0][2]
+
+    async def test_ignores_duplicate_activity_submit_from_same_message(
+        self, handler, button_event, mock_contract_service, mock_contract
+    ):
+        mock_contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
+        mock_contract_service.get_activities_by_contract_id = AsyncMock(return_value=[])
+        mock_contract_service.add_activity = AsyncMock()
+        payload = {
+            "activity_name": "Review",
+            "budget": "1000000",
+            "working_days": "4.5",
+            "rate": "2000000",
+        }
+
+        await handler._handle_save_activity(button_event, 1, payload)
+        await handler._handle_save_activity(button_event, 1, payload)
+
+        mock_contract_service.add_activity.assert_awaited_once()
+        assert "đã được lưu trước đó" in handler.edit_message.call_args[0][2]
