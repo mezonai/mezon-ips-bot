@@ -22,7 +22,7 @@ from .base import BaseMessageHandler, command
 from app.services.bot.form_tracker import form_tracker
 from app.services.expert.service import ExpertService, ExpertData
 from app.services.contract.service import ContractService, ContractData, ActivityData
-from app.services.program.service import ProgramService
+from app.services.program.service import ProgramService, normalize_program_code
 from app.services.word_export import WordExportService
 from app.services.s3_upload import S3UploadService
 from app.utils.formatters import format_currency_vn, format_date_vn
@@ -178,7 +178,7 @@ class ExpertHandler(BaseMessageHandler):
         )
 
     def _build_contract_list_rows(
-        self, prof_id: int, contracts: list
+        self, prof_id: int, contracts: list, allow_create: bool = True
     ) -> list[MessageActionRow]:
         """Build button rows for contract list, one button per contract."""
         rows = []
@@ -193,11 +193,12 @@ class ExpertHandler(BaseMessageHandler):
             )
 
         bb2 = ButtonBuilder()
-        bb2.add_button(
-            f"create_contract:{prof_id}",
-            "➕ Tạo hợp đồng mới",
-            ButtonMessageStyle.SUCCESS,
-        )
+        if allow_create:
+            bb2.add_button(
+                f"create_contract:{prof_id}",
+                "➕ Tạo hợp đồng mới",
+                ButtonMessageStyle.SUCCESS,
+            )
         bb2.add_button("cancel", "⬅️ Quay lại", ButtonMessageStyle.SECONDARY)
         built2 = bb2.build()
         rows.append(
@@ -317,9 +318,13 @@ class ExpertHandler(BaseMessageHandler):
             placeholder="012345678901",
             options=InputFieldOption(defaultValue=p.id_number or ""),
         )
-        form.add_datepicker_field(
+        form.add_input_field(
             "issued_date",
             "Ngày cấp",
+            placeholder="dd/mm/yyyy",
+            options=InputFieldOption(
+                defaultValue=format_date_vn(p.issued_date) if p.issued_date else ""
+            )
         )
         form.add_input_field(
             "issued_place",
@@ -427,6 +432,67 @@ class ExpertHandler(BaseMessageHandler):
         ]
         return "\n".join(lines)
 
+    def _format_expert_lookup_matches(self, experts: list[ExpertData]) -> str:
+        """Format expert matches for user-facing disambiguation."""
+        lines = [
+            f"📋 Tìm thấy {len(experts)} chuyên gia trùng khớp. Hãy chọn đúng người bên dưới:"
+        ]
+        for expert in experts[:10]:
+            lines.append(
+                f"- {expert.pronoun} {expert.expert_name} | CCCD: {expert.id_number or '—'}"
+            )
+        if len(experts) > 10:
+            lines.append("Hiển thị 10 kết quả đầu. Hãy nhập tên cụ thể hơn hoặc dùng CCCD.")
+        return "\n".join(lines)
+
+    def _build_expert_resolution_buttons(
+        self, action: str, experts: list[ExpertData]
+    ) -> list[MessageActionRow]:
+        """Build buttons for ambiguous expert lookup."""
+        rows: list[MessageActionRow] = []
+        for expert in experts[:10]:
+            rows.extend(
+                self._build_buttons(
+                    [
+                        (
+                            f"resolve_{action}:{expert.id}",
+                            f"{expert.expert_name} | {expert.id_number or '—'}",
+                            ButtonMessageStyle.PRIMARY,
+                        )
+                    ]
+                )
+            )
+        rows.extend(
+            self._build_buttons(
+                [("cancel", "❌ Hủy", ButtonMessageStyle.SECONDARY)]
+            )
+        )
+        return rows
+
+    async def _resolve_single_expert(
+        self, keyword: str | None
+    ) -> tuple[ExpertData | None, list[ExpertData] | None, str | None]:
+        """Resolve one expert from user input using CCCD or name."""
+        if not keyword or not keyword.strip():
+            return (
+                None,
+                None,
+                "❌ Thiếu thông tin tìm kiếm. Hãy nhập CCCD hoặc tên chuyên gia.",
+            )
+
+        matches = await self.expert_service.resolve_experts(keyword)
+        if not matches:
+            return (
+                None,
+                None,
+                f"❌ Không tìm thấy chuyên gia với từ khóa: `{keyword.strip()}`",
+            )
+
+        if len(matches) > 1:
+            return None, matches, None
+
+        return matches[0], None, None
+
     @command("*expert")
     async def handle_expert(
         self,
@@ -440,8 +506,8 @@ class ExpertHandler(BaseMessageHandler):
             *expert
             *expert list
             *expert add
-            *expert edit <id>
-            *expert delete <id>
+            *expert edit <cccd|tên>
+            *expert delete <cccd|tên>
             *expert find name <search_term>
             *expert find id <cccd_number>
         """
@@ -452,8 +518,8 @@ class ExpertHandler(BaseMessageHandler):
                 "Chọn thao tác ở trên, hoặc dùng trực tiếp:\n"
                 "`*expert list` - Danh sách\n"
                 "`*expert add` - Thêm mới\n"
-                "`*expert edit <id>` - Sửa\n"
-                "`*expert delete <id>` - Xóa\n"
+                "`*expert edit <cccd|tên>` - Sửa\n"
+                "`*expert delete <cccd|tên>` - Xóa\n"
                 "`*expert find name <tên>` - Tìm theo tên\n"
                 "`*expert find id <cccd>` - Tìm theo CCCD",
             )
@@ -475,6 +541,61 @@ class ExpertHandler(BaseMessageHandler):
                 f"❌ Lệnh con không hợp lệ: `{subcmd}`.\n"
                 "Dùng `*expert` để xem danh sách lệnh.",
             )
+
+    @command("*contract")
+    async def handle_contract(
+        self,
+        message: Any,
+        target: str = None,
+        action: str = None,
+        filter_key: str = None,
+        rest: str = None,
+    ) -> None:
+        """Handle *contract expert list year <YYYY>."""
+        if target != "expert" or action != "list" or filter_key != "year":
+            await self.reply_message(
+                message,
+                "❌ Cú pháp không hợp lệ. Dùng: `*contract expert list year <YYYY>`",
+            )
+            return
+
+        if not self.contract_service:
+            await self.reply_message(message, "❌ Contract service không khả dụng.")
+            return
+
+        try:
+            year = int((rest or "").strip())
+        except ValueError:
+            await self.reply_message(
+                message,
+                "❌ Năm không hợp lệ. Dùng: `*contract expert list year <YYYY>`",
+            )
+            return
+
+        contracts = await self.contract_service.get_contracts_by_year(year)
+        if not contracts:
+            await self.reply_message(
+                message,
+                f"📋 Không có hợp đồng chuyên gia nào trong năm **{year}**.",
+            )
+            return
+
+        lines = [f"📋 **Danh sách hợp đồng chuyên gia năm {year}**\n"]
+        for contract in contracts:
+            expert = await self.expert_service.get_expert_by_id(contract.expert_id)
+            activities = await self.contract_service.get_activities_by_contract_id(contract.id)
+            expert_name = (
+                f"{expert.pronoun} {expert.expert_name}" if expert else f"Chuyên gia #{contract.expert_id}"
+            )
+            lines.append(
+                f"• **{contract.order_id}** ({contract.dd:02d}/{contract.mm:02d}/{contract.yyyy})\n"
+                f"  Chuyên gia: {expert_name}\n"
+                f"  Dự án: {contract.project_name or contract.abbreviated_project or '—'}\n"
+                f"  Hoạt động: {len(activities)} | Tổng: {format_currency_vn(contract.total_amount)} | Thực nhận: {format_currency_vn(contract.final_amount)}"
+            )
+            lines.append("")
+
+        await self.reply_message(message, "\n".join(lines))
 
     async def _handle_list(self, message: Any) -> None:
         experts = await self.expert_service.list_all()
@@ -522,7 +643,7 @@ class ExpertHandler(BaseMessageHandler):
                 return
 
             form = InteractiveBuilder("✏️ Chọn chuyên gia cần sửa")
-            form.set_description("Chọn ID chuyên gia muốn chỉnh sửa")
+            form.set_description("Chọn chuyên gia muốn chỉnh sửa")
             form.set_color("#F59E0B")
 
             form.add_radio_field(
@@ -549,16 +670,15 @@ class ExpertHandler(BaseMessageHandler):
             )
             return
 
-        try:
-            prof_id = int(rest.strip())
-        except ValueError:
-            await self.reply_message(message, "❌ ID phải là số.")
+        existing, matches, error_message = await self._resolve_single_expert(rest)
+        if error_message:
+            await self.reply_message(message, error_message)
             return
-
-        existing = await self.expert_service.get_expert_by_id(prof_id)
-        if not existing:
+        if matches:
             await self.reply_message(
-                message, f"❌ Không tìm thấy chuyên gia với ID: {prof_id}"
+                message,
+                self._format_expert_lookup_matches(matches),
+                components=self._build_expert_resolution_buttons("edit", matches),
             )
             return
 
@@ -568,34 +688,34 @@ class ExpertHandler(BaseMessageHandler):
             message,
             f"✏️ Đang sửa thông tin chuyên gia: **{existing.pronoun} {existing.expert_name}**",
             embeds=[InteractiveMessageProps(**form.build())],
-            components=self._build_edit_buttons(prof_id),
+            components=self._build_edit_buttons(existing.id),
         )
 
     async def _handle_delete(self, message: Any, rest: str | None) -> None:
         """Send confirmation to delete an expert."""
         if not rest:
             await self.reply_message(
-                message, "❌ Thiếu ID.\nCách dùng: `*expert delete <id>`"
+                message,
+                "❌ Thiếu thông tin.\nCách dùng: `*expert delete <cccd|tên>`",
             )
             return
 
-        try:
-            prof_id = int(rest.strip())
-        except ValueError:
-            await self.reply_message(message, "❌ ID phải là số.")
+        existing, matches, error_message = await self._resolve_single_expert(rest)
+        if error_message:
+            await self.reply_message(message, error_message)
             return
-
-        existing = await self.expert_service.get_expert_by_id(prof_id)
-        if not existing:
+        if matches:
             await self.reply_message(
-                message, f"❌ Không tìm thấy chuyên gia với ID: {prof_id}"
+                message,
+                self._format_expert_lookup_matches(matches),
+                components=self._build_expert_resolution_buttons("delete", matches),
             )
             return
 
         form = InteractiveBuilder("⚠️ Xác nhận xóa")
         form.set_description(
             f"Bạn có chắc chắn muốn xóa chuyên gia:\n"
-            f"**{existing.pronoun} {existing.expert_name}** (ID: {prof_id})\n"
+            f"**{existing.pronoun} {existing.expert_name}** (ID: {existing.id})\n"
             f"CCCD: {existing.id_number or '—'}"
         )
         form.set_color("#EF4444")
@@ -604,7 +724,7 @@ class ExpertHandler(BaseMessageHandler):
             message,
             f"⚠️ Xác nhận xóa chuyên gia: **{existing.pronoun} {existing.expert_name}**",
             embeds=[InteractiveMessageProps(**form.build())],
-            components=self._build_delete_buttons(prof_id),
+            components=self._build_delete_buttons(existing.id),
         )
 
     async def _handle_find(self, message: Any, rest: str | None) -> None:
@@ -685,6 +805,16 @@ class ExpertHandler(BaseMessageHandler):
             if event.button_id.startswith("delete_confirm:"):
                 prof_id = int(event.button_id.split(":")[1])
                 await self._handle_delete_confirm(event, prof_id)
+                return
+
+            if event.button_id.startswith("resolve_edit:"):
+                prof_id = int(event.button_id.split(":")[1])
+                await self._handle_resolve_edit(event, prof_id)
+                return
+
+            if event.button_id.startswith("resolve_delete:"):
+                prof_id = int(event.button_id.split(":")[1])
+                await self._handle_resolve_delete(event, prof_id)
                 return
 
             if event.button_id.startswith("save_edit:"):
@@ -800,6 +930,59 @@ class ExpertHandler(BaseMessageHandler):
                 components=[],
             )
 
+    async def _handle_resolve_edit(
+        self, event: realtime_pb2.MessageButtonClicked, prof_id: int
+    ) -> None:
+        """Continue edit flow after disambiguation."""
+        existing = await self.expert_service.get_active_expert_by_id(prof_id)
+        if not existing:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                "❌ Không tìm thấy chuyên gia.",
+                components=[],
+            )
+            return
+
+        form = self._build_edit_form(existing)
+        await self.edit_message(
+            event.channel_id,
+            event.message_id,
+            f"✏️ Đang sửa thông tin chuyên gia: **{existing.pronoun} {existing.expert_name}**",
+            embeds=[InteractiveMessageProps(**form.build())],
+            components=self._build_edit_buttons(existing.id),
+        )
+
+    async def _handle_resolve_delete(
+        self, event: realtime_pb2.MessageButtonClicked, prof_id: int
+    ) -> None:
+        """Continue delete flow after disambiguation."""
+        existing = await self.expert_service.get_active_expert_by_id(prof_id)
+        if not existing:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                "❌ Không tìm thấy chuyên gia.",
+                components=[],
+            )
+            return
+
+        form = InteractiveBuilder("⚠️ Xác nhận xóa")
+        form.set_description(
+            f"Bạn có chắc chắn muốn xóa chuyên gia:\n"
+            f"**{existing.pronoun} {existing.expert_name}** (ID: {existing.id})\n"
+            f"CCCD: {existing.id_number or '—'}"
+        )
+        form.set_color("#EF4444")
+
+        await self.edit_message(
+            event.channel_id,
+            event.message_id,
+            f"⚠️ Xác nhận xóa chuyên gia: **{existing.pronoun} {existing.expert_name}**",
+            embeds=[InteractiveMessageProps(**form.build())],
+            components=self._build_delete_buttons(existing.id),
+        )
+
     async def _handle_save(
         self, event: realtime_pb2.MessageButtonClicked, extra_data: dict[str, Any]
     ) -> None:
@@ -871,7 +1054,7 @@ class ExpertHandler(BaseMessageHandler):
         extra_data: dict[str, Any],
     ) -> None:
         """Handle save button from edit form."""
-        existing = await self.expert_service.get_expert_by_id(prof_id)
+        existing = await self.expert_service.get_active_expert_by_id(prof_id)
         if not existing:
             await self.edit_message(
                 event.channel_id,
@@ -960,7 +1143,7 @@ class ExpertHandler(BaseMessageHandler):
             )
             return
 
-        existing = await self.expert_service.get_expert_by_id(prof_id)
+        existing = await self.expert_service.get_active_expert_by_id(prof_id)
         if not existing:
             await self.edit_message(
                 event.channel_id,
@@ -994,7 +1177,7 @@ class ExpertHandler(BaseMessageHandler):
             )
             return
 
-        prof = await self.expert_service.get_expert_by_id(prof_id)
+        prof = await self.expert_service.get_active_expert_by_id(prof_id)
         if not prof:
             await self.edit_message(
                 event.channel_id,
@@ -1029,6 +1212,16 @@ class ExpertHandler(BaseMessageHandler):
             )
             return
 
+        prof = await self.expert_service.get_active_expert_by_id(prof_id)
+        if not prof:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                "❌ Chuyên gia không còn hoạt động hoặc không tồn tại.",
+                components=[],
+            )
+            return
+
         try:
             order_id = extra_data.get("order_id", "").strip()
             if not order_id:
@@ -1053,7 +1246,7 @@ class ExpertHandler(BaseMessageHandler):
                 )
                 return
 
-            program_code = extra_data.get("program_code", "").strip()
+            program_code = normalize_program_code(extra_data.get("program_code", ""))
             if not program_code:
                 await self.edit_message(
                     event.channel_id,
@@ -1074,6 +1267,20 @@ class ExpertHandler(BaseMessageHandler):
                 return
 
             abbreviated_project = program_code
+            duplicate_contract = (
+                await self.contract_service.has_contract_order_in_project(
+                    order_id,
+                    abbreviated_project,
+                )
+            )
+            if duplicate_contract:
+                await self.edit_message(
+                    event.channel_id,
+                    event.message_id,
+                    f"❌ Số hợp đồng **{order_id}** đã tồn tại trong dự án **{abbreviated_project}**.",
+                    components=[],
+                )
+                return
 
             contract_data = ContractData(
                 id=0,
@@ -1354,7 +1561,10 @@ class ExpertHandler(BaseMessageHandler):
             return
 
         prof = await self.expert_service.get_expert_by_id(prof_id)
-        summary = [f"📋 **Danh sách hợp đồng: {prof.pronoun} {prof.expert_name}**\n"]
+        expert_title = (
+            f"{prof.pronoun} {prof.expert_name}" if prof else f"chuyên gia #{prof_id}"
+        )
+        summary = [f"📋 **Danh sách hợp đồng: {expert_title}**\n"]
 
         for c in contracts:
             activities = await self.contract_service.get_activities_by_contract_id(c.id)
@@ -1369,7 +1579,9 @@ class ExpertHandler(BaseMessageHandler):
             event.channel_id,
             event.message_id,
             "\n".join(summary),
-            components=self._build_contract_list_rows(prof_id, contracts),
+            components=self._build_contract_list_rows(
+                prof_id, contracts, allow_create=prof is not None
+            ),
         )
 
     async def _handle_view_contract(
@@ -1759,6 +1971,16 @@ class ExpertHandler(BaseMessageHandler):
                 )
                 return
 
+            today = date_type.today()
+            if contract.end_date and today > contract.end_date:
+                await self.edit_message(
+                    event.channel_id,
+                    event.message_id,
+                    "❌ Không thể nghiệm thu vì ngày nghiệm thu vượt quá ngày kết thúc hợp đồng.",
+                    components=[],
+                )
+                return
+
             prof = await self.expert_service.get_expert_by_id(contract.expert_id)
             if not prof:
                 await self.edit_message(
@@ -1904,4 +2126,3 @@ class ExpertHandler(BaseMessageHandler):
                 f"❌ Lỗi xuất file: {e}",
                 components=[],
             )
-

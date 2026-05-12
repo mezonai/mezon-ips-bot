@@ -6,6 +6,11 @@ from app.database.repositories.program import ProgramRepository
 from app.database.models.program import Program
 
 
+def normalize_program_code(program_code: str) -> str:
+    """Normalize program codes for storage and lookup."""
+    return program_code.strip().upper()
+
+
 @dataclass
 class ProgramData:
     """Data class for program information."""
@@ -27,7 +32,7 @@ class ProgramService:
     async def create_program(self, data: ProgramData) -> ProgramData:
         """Create a new program."""
         program = Program(
-            program_code=data.program_code,
+            program_code=normalize_program_code(data.program_code),
             name=data.name,
             summary_activities=data.summary_activities,
             activity_purpose=data.activity_purpose,
@@ -45,7 +50,9 @@ class ProgramService:
 
     async def get_program_by_code(self, program_code: str) -> Optional[ProgramData]:
         """Get a program by its code."""
-        program = await self._repository.get_program_by_code(program_code)
+        program = await self._repository.get_program_by_code(
+            normalize_program_code(program_code)
+        )
         if program is None:
             return None
         return self._to_data(program)
@@ -63,7 +70,7 @@ class ProgramService:
         if program is None:
             return None
 
-        program.program_code = data.program_code
+        program.program_code = normalize_program_code(data.program_code)
         program.name = data.name
         program.summary_activities = data.summary_activities
         program.activity_purpose = data.activity_purpose

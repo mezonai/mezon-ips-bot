@@ -18,8 +18,9 @@ from mezon.protobuf.rtapi import realtime_pb2
 
 from .base import BaseMessageHandler, command
 from app.services.bot.form_tracker import form_tracker
-from app.services.program.service import ProgramService, ProgramData
-from app.utils.formatters import format_date_vn
+from app.services.contract.service import ContractService
+from app.services.program.service import ProgramData, ProgramService, normalize_program_code
+from app.utils.formatters import format_currency_vn, format_date_vn
 
 
 class ProgramHandler(BaseMessageHandler):
@@ -29,9 +30,11 @@ class ProgramHandler(BaseMessageHandler):
         self,
         client,
         program_service: ProgramService,
+        contract_service: ContractService | None = None,
     ):
         super().__init__(client)
         self.program_service = program_service
+        self.contract_service = contract_service
 
     def _build_buttons(
         self, buttons: list[tuple[str, str, ButtonMessageStyle]]
@@ -103,6 +106,22 @@ class ProgramHandler(BaseMessageHandler):
         ]
         return "\n".join(lines)
 
+    def _build_program_action_buttons(self, program_id: int) -> list[MessageActionRow]:
+        return self._build_buttons(
+            [
+                (f"view_program_contracts:{program_id}", "📋 DS hợp đồng", ButtonMessageStyle.SECONDARY),
+                (f"edit_program:{program_id}", "✏️ Sửa", ButtonMessageStyle.PRIMARY),
+                (f"delete_program:{program_id}", "🗑️ Xóa", ButtonMessageStyle.DANGER),
+            ]
+        )
+
+    async def _show_program_detail(self, message, program: ProgramData) -> None:
+        await self.reply_message(
+            message,
+            self._format_program(program),
+            components=self._build_program_action_buttons(program.id),
+        )
+
     @command("*program")
     async def handle_program(self, message, subcmd: str = None, rest: str = None) -> None:
         """Handle *program command."""
@@ -121,11 +140,13 @@ class ProgramHandler(BaseMessageHandler):
         elif subcmd == "delete":
             await self._handle_delete(message, rest or "")
         else:
-            await self.reply_message(
-                message,
-                f"❌ Lệnh con không hợp lệ: `{subcmd}`.\n"
-                "Dùng `*program` để xem danh sách lệnh.",
+            code = normalize_program_code(
+                " ".join(part for part in [subcmd, rest or ""] if part).strip()
             )
+            if not code:
+                await self._handle_help(message)
+                return
+            await self._handle_find(message, code)
 
     async def _handle_help(self, message) -> None:
         """Show help message."""
@@ -134,6 +155,7 @@ class ProgramHandler(BaseMessageHandler):
 **Lệnh:**
 • `*program list` — Danh sách chương trình
 • `*program add` — Thêm chương trình mới
+• `*program <mã>` — Xem chương trình theo mã
 • `*program find <mã>` — Tìm chương trình theo mã
 • `*program edit <mã>` — Sửa chương trình
 • `*program delete <mã>` — Xóa chương trình"""
@@ -169,19 +191,13 @@ class ProgramHandler(BaseMessageHandler):
             await self.reply_message(message, "❌ Thiếu mã chương trình. Dùng: `*program find <mã>`")
             return
 
+        code = normalize_program_code(code)
         program = await self.program_service.get_program_by_code(code)
         if not program:
             await self.reply_message(message, f"❌ Không tìm thấy chương trình với mã `{code}`.")
             return
 
-        await self.reply_message(
-            message,
-            self._format_program(program),
-            components=self._build_buttons([
-                (f"edit_program:{program.id}", "✏️ Sửa", ButtonMessageStyle.PRIMARY),
-                (f"delete_program:{program.id}", "🗑️ Xóa", ButtonMessageStyle.DANGER),
-            ]),
-        )
+        await self._show_program_detail(message, program)
 
     async def _handle_edit(self, message, code: str) -> None:
         """Show form to edit a program."""
@@ -189,6 +205,7 @@ class ProgramHandler(BaseMessageHandler):
             await self.reply_message(message, "❌ Thiếu mã chương trình. Dùng: `*program edit <mã>`")
             return
 
+        code = normalize_program_code(code)
         program = await self.program_service.get_program_by_code(code)
         if not program:
             await self.reply_message(message, f"❌ Không tìm thấy chương trình với mã `{code}`.")
@@ -208,6 +225,7 @@ class ProgramHandler(BaseMessageHandler):
             await self.reply_message(message, "❌ Thiếu mã chương trình. Dùng: `*program delete <mã>`")
             return
 
+        code = normalize_program_code(code)
         program = await self.program_service.get_program_by_code(code)
         if not program:
             await self.reply_message(message, f"❌ Không tìm thấy chương trình với mã `{code}`.")
@@ -245,13 +263,61 @@ class ProgramHandler(BaseMessageHandler):
         elif button_id.startswith("confirm_delete_program:"):
             program_id = int(button_id.split(":")[1])
             await self._handle_confirm_delete(event, program_id)
+        elif button_id.startswith("view_program_contracts:"):
+            program_id = int(button_id.split(":")[1])
+            await self._handle_view_program_contracts(event, program_id)
+
+    async def _handle_view_program_contracts(
+        self, event: realtime_pb2.MessageButtonClicked, program_id: int
+    ) -> None:
+        """Show contracts under one program."""
+        if not self.contract_service:
+            await self.edit_message(
+                event.channel_id, event.message_id, "❌ Contract service không khả dụng.", components=[]
+            )
+            return
+
+        program = await self.program_service.get_program_by_id(program_id)
+        if not program:
+            await self.edit_message(
+                event.channel_id, event.message_id, "❌ Không tìm thấy chương trình.", components=[]
+            )
+            return
+
+        contracts = await self.contract_service.get_contracts_by_program_id(program_id)
+        if not contracts:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                f"📋 Chưa có hợp đồng nào trong chương trình **{program.program_code}**.",
+                components=[],
+            )
+            return
+
+        lines = [f"📋 **Danh sách hợp đồng: {program.program_code} - {program.name}**\n"]
+        for contract in contracts:
+            activities = await self.contract_service.get_activities_by_contract_id(contract.id)
+            lines.append(
+                f"• **{contract.order_id}** ({contract.dd:02d}/{contract.mm:02d}/{contract.yyyy})\n"
+                f"  Hoạt động: {len(activities)} | Tổng: {format_currency_vn(contract.total_amount)} | Thực nhận: {format_currency_vn(contract.final_amount)}"
+            )
+            lines.append("")
+
+        await self.edit_message(
+            event.channel_id,
+            event.message_id,
+            "\n".join(lines),
+            components=self._build_buttons(
+                [(f"edit_program:{program.id}", "✏️ Sửa CT", ButtonMessageStyle.PRIMARY)]
+            ),
+        )
 
     async def _handle_save_program(
         self, event: realtime_pb2.MessageButtonClicked, extra_data: dict[str, Any]
     ) -> None:
         """Handle save new program."""
         try:
-            program_code = extra_data.get("program_code", "").strip()
+            program_code = normalize_program_code(extra_data.get("program_code", ""))
             name = extra_data.get("name", "").strip()
 
             if not program_code or not name:
@@ -313,7 +379,7 @@ class ProgramHandler(BaseMessageHandler):
     ) -> None:
         """Handle update existing program."""
         try:
-            program_code = extra_data.get("program_code", "").strip()
+            program_code = normalize_program_code(extra_data.get("program_code", ""))
             name = extra_data.get("name", "").strip()
 
             if not program_code or not name:

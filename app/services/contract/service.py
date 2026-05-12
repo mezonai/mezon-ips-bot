@@ -5,6 +5,7 @@ from datetime import date as date_type
 from app.database.repositories.contract import ContractRepository
 from app.database.repositories.program import ProgramRepository
 from app.database.models.contract import ExpertContract, ContractActivity
+from app.services.program.service import normalize_program_code
 
 
 @dataclass
@@ -60,11 +61,22 @@ class ContractService:
         """Resolve a program_code to its program_id. Returns None if not found."""
         if self._program_repo is None:
             return None
-        program = await self._program_repo.get_program_by_code(program_code)
+        program = await self._program_repo.get_program_by_code(
+            normalize_program_code(program_code)
+        )
         return program.id if program else None
 
     async def create_contract(self, data: ContractData) -> ContractData:
         """Create a new contract (draft, before activities)."""
+        existing = await self._contract_repo.get_contract_by_order_id_and_project(
+            data.order_id,
+            data.abbreviated_project,
+        )
+        if existing is not None:
+            raise ValueError(
+                "Số hợp đồng đã tồn tại trong cùng chương trình/dự án."
+            )
+
         contract = ExpertContract(
             order_id=data.order_id,
             dd=data.dd,
@@ -81,6 +93,16 @@ class ContractService:
         created = await self._contract_repo.create_contract(contract)
         return await self._to_contract_data(created)
 
+    async def has_contract_order_in_project(
+        self, order_id: str, abbreviated_project: str
+    ) -> bool:
+        """Check if same order id already exists in given project."""
+        existing = await self._contract_repo.get_contract_by_order_id_and_project(
+            order_id,
+            abbreviated_project,
+        )
+        return existing is not None
+
     async def get_contract_by_id(self, contract_id: int) -> Optional[ContractData]:
         """Get a contract by ID."""
         contract = await self._contract_repo.get_contract_by_id(contract_id)
@@ -91,6 +113,16 @@ class ContractService:
     async def get_contracts_by_expert_id(self, expert_id: int) -> List[ContractData]:
         """Get all contracts for an expert."""
         contracts = await self._contract_repo.get_contracts_by_expert_id(expert_id)
+        return [await self._to_contract_data(c) for c in contracts]
+
+    async def get_contracts_by_program_id(self, program_id: int) -> List[ContractData]:
+        """Get all contracts for a program."""
+        contracts = await self._contract_repo.get_contracts_by_program_id(program_id)
+        return [await self._to_contract_data(c) for c in contracts]
+
+    async def get_contracts_by_year(self, year: int) -> List[ContractData]:
+        """Get all expert contracts in a year."""
+        contracts = await self._contract_repo.get_contracts_by_year(year)
         return [await self._to_contract_data(c) for c in contracts]
 
     async def update_contract(

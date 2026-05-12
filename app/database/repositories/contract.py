@@ -18,6 +18,20 @@ class ContractRepository(BaseRepository):
             await session.refresh(contract, ["program"])
             return contract
 
+    async def get_contract_by_order_id_and_project(
+        self, order_id: str, abbreviated_project: str
+    ) -> Optional[ExpertContract]:
+        """Get non-deleted contract by order id within same project."""
+        async with self._get_session() as session:
+            result = await session.execute(
+                select(ExpertContract).where(
+                    ExpertContract.order_id == order_id,
+                    ExpertContract.abbreviated_project == abbreviated_project,
+                    ExpertContract.deleted_at.is_(None),
+                )
+            )
+            return result.scalars().first()
+
     async def get_contract_by_id(self, contract_id: int) -> Optional[ExpertContract]:
         """Get contract by ID with activities and program."""
         async with self._get_session() as session:
@@ -41,6 +55,52 @@ class ContractRepository(BaseRepository):
                     ExpertContract.deleted_at.is_(None),
                 )
                 .order_by(ExpertContract.created_at.desc())
+            )
+            contracts = result.scalars().all()
+            for contract in contracts:
+                await session.refresh(contract, ["activities"])
+            return contracts
+
+    async def get_contracts_by_program_id(
+        self, program_id: int
+    ) -> List[ExpertContract]:
+        """Get all contracts for a program, newest contract date first."""
+        async with self._get_session() as session:
+            result = await session.execute(
+                select(ExpertContract)
+                .options(selectinload(ExpertContract.program))
+                .where(
+                    ExpertContract.program_id == program_id,
+                    ExpertContract.deleted_at.is_(None),
+                )
+                .order_by(
+                    ExpertContract.yyyy.desc(),
+                    ExpertContract.mm.desc(),
+                    ExpertContract.dd.desc(),
+                    ExpertContract.created_at.desc(),
+                )
+            )
+            contracts = result.scalars().all()
+            for contract in contracts:
+                await session.refresh(contract, ["activities"])
+            return contracts
+
+    async def get_contracts_by_year(self, year: int) -> List[ExpertContract]:
+        """Get all contracts in a year, newest contract date first."""
+        async with self._get_session() as session:
+            result = await session.execute(
+                select(ExpertContract)
+                .options(selectinload(ExpertContract.program))
+                .where(
+                    ExpertContract.yyyy == year,
+                    ExpertContract.deleted_at.is_(None),
+                )
+                .order_by(
+                    ExpertContract.yyyy.desc(),
+                    ExpertContract.mm.desc(),
+                    ExpertContract.dd.desc(),
+                    ExpertContract.created_at.desc(),
+                )
             )
             contracts = result.scalars().all()
             for contract in contracts:

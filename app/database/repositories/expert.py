@@ -25,11 +25,25 @@ class ExpertRepository(BaseRepository):
             )
             return result.scalars().first()
 
+    async def get_active_by_id(self, expert_id: int) -> Optional[Expert]:
+        """Get active expert by ID."""
+        async with self._get_session() as session:
+            result = await session.execute(
+                select(Expert).where(
+                    Expert.id == expert_id,
+                    Expert.deleted_at.is_(None),
+                )
+            )
+            return result.scalars().first()
+
     async def find_by_name(self, name: str) -> List[Expert]:
         """Find experts by expert_name (case-insensitive partial match)."""
         async with self._get_session() as session:
             result = await session.execute(
-                select(Expert).where(Expert.expert_name.ilike(f"%{name}%"))
+                select(Expert).where(
+                    Expert.expert_name.ilike(f"%{name}%"),
+                    Expert.deleted_at.is_(None),
+                )
             )
             return result.scalars().all()
 
@@ -37,7 +51,10 @@ class ExpertRepository(BaseRepository):
         """Find expert by CCCD/id_number."""
         async with self._get_session() as session:
             result = await session.execute(
-                select(Expert).where(Expert.id_number == id_number)
+                select(Expert).where(
+                    Expert.id_number == id_number,
+                    Expert.deleted_at.is_(None),
+                )
             )
             return result.scalars().first()
 

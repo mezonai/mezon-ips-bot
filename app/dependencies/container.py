@@ -106,6 +106,7 @@ class Container(containers.DeclarativeContainer):
         ProgramHandler,
         client=mezon_client,
         program_service=program_service,
+        contract_service=contract_service,
     )
 
     handler_manager = providers.Singleton(

@@ -507,9 +507,10 @@ Access interactive docs at:
 | `*expert` | Show expert management help | `*expert` |
 | `*expert list` | List all experts with pagination | `*expert list` |
 | `*expert add` | Add new expert (interactive form) | `*expert add` |
-| `*expert edit` | Edit expert information (interactive form) | `*expert edit` |
-| `*expert delete` | Delete expert (interactive form) | `*expert delete` |
-| `*expert find <query>` | Search experts by name, email, or expertise | `*expert find John` |
+| `*expert edit <cccd\|tên>` | Edit expert information | `*expert edit 012345678901` |
+| `*expert delete <cccd\|tên>` | Delete expert | `*expert delete Nguyen Van A` |
+| `*expert find name <tên>` | Search experts by name | `*expert find name Nguyen Van A` |
+| `*expert find id <cccd>` | Search experts by CCCD | `*expert find id 012345678901` |
 
 **Expert Fields:**
 - Name (required)
@@ -526,18 +527,23 @@ Access interactive docs at:
 | `*program` | Show program management help | `*program` |
 | `*program list` | List all programs | `*program list` |
 | `*program add` | Add new program (interactive form) | `*program add` |
+| `*program <code>` | Show program details by code | `*program PROJ-001` |
 | `*program find <code>` | Find program by code | `*program find PRJ-001` |
 | `*program edit <code>` | Edit program information | `*program edit PRJ-001` |
 | `*program delete <code>` | Delete program | `*program delete PRJ-001` |
+| `*contract expert list year <year>` | List expert contracts by year, newest first | `*contract expert list year 2026` |
 
 **Program Fields:**
-- Program Code (required, unique)
+- Program Code (required, unique, auto-normalized to uppercase)
 - Program Name (required)
-- Description
-- Start Date
+- Activity Purpose
+- Summary Activities
 - End Date
-- Budget
-- Status (Planning, Active, Completed, Cancelled)
+
+**Contract Behaviors:**
+- Program detail view includes button to list contracts in same project/program
+- Contract numbers must be unique within same project
+- Acceptance export is blocked after contract end date
 
 ### Interactive Forms
 

@@ -1,6 +1,6 @@
 from typing import Optional, List
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.database.repositories.base import BaseRepository
 from app.database.models.program import Program
@@ -30,7 +30,7 @@ class ProgramRepository(BaseRepository):
         async with self._get_session() as session:
             result = await session.execute(
                 select(Program).where(
-                    Program.program_code == program_code,
+                    func.upper(Program.program_code) == program_code,
                     Program.deleted_at.is_(None),
                 )
             )

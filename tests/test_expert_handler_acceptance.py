@@ -11,15 +11,6 @@ from app.services.bot.handlers.expert import ExpertHandler
 
 
 @pytest.fixture
-def mock_word_export_service():
-    """Create a mock WordExportService."""
-    service = MagicMock()
-    service.export_contract = MagicMock()
-    service.export_acceptance_report = MagicMock()
-    return service
-
-
-@pytest.fixture
 def handler(mock_client, mock_contract_service, mock_expert_service, mock_program_service, mock_word_export_service):
     """Create an ExpertHandler with mocked dependencies."""
     h = ExpertHandler(
@@ -285,3 +276,124 @@ class TestButtonRouting:
         await handler.handle_button_click(button_event)
 
         handler._handle_export_acceptance.assert_called_once()
+
+
+class TestExpertLookupByCccdOrName:
+    """Test edit/delete lookup flow by CCCD or expert name."""
+
+    async def test_handle_edit_resolves_by_cccd(
+        self, handler, mock_expert_service, mock_expert
+    ):
+        """Should resolve edit target by CCCD."""
+        handler.reply_message = AsyncMock()
+        mock_expert_service.resolve_experts = AsyncMock(return_value=[mock_expert])
+
+        await handler._handle_edit(MagicMock(), "012345678901")
+
+        mock_expert_service.resolve_experts.assert_awaited_once_with("012345678901")
+        handler.reply_message.assert_called_once()
+        assert "Đang sửa thông tin chuyên gia" in handler.reply_message.call_args[0][1]
+
+    async def test_handle_edit_resolves_by_name(
+        self, handler, mock_expert_service, mock_expert
+    ):
+        """Should resolve edit target by expert name."""
+        handler.reply_message = AsyncMock()
+        mock_expert_service.resolve_experts = AsyncMock(return_value=[mock_expert])
+
+        await handler._handle_edit(MagicMock(), "Nguyen Van A")
+
+        mock_expert_service.resolve_experts.assert_awaited_once_with("Nguyen Van A")
+        handler.reply_message.assert_called_once()
+        assert "Đang sửa thông tin chuyên gia" in handler.reply_message.call_args[0][1]
+
+    async def test_handle_edit_shows_ambiguous_matches(
+        self, handler, mock_expert_service, mock_expert
+    ):
+        """Should ask user to disambiguate when name matches many experts."""
+        handler.reply_message = AsyncMock()
+        other = ExpertData(
+            id=2,
+            pronoun="Bà",
+            expert_name="Nguyen Van A",
+            id_number="999999999999",
+        )
+        mock_expert_service.resolve_experts = AsyncMock(return_value=[mock_expert, other])
+
+        await handler._handle_edit(MagicMock(), "Nguyen Van A")
+
+        handler.reply_message.assert_called_once()
+        message_text = handler.reply_message.call_args[0][1]
+        assert "Tìm thấy 2 chuyên gia trùng khớp" in message_text
+        assert "Nguyen Van A | CCCD: 012345678901" in message_text
+        components = handler.reply_message.call_args[1]["components"]
+        component_ids = [mc.component_id for row in components for mc in row.components]
+        assert "resolve_edit:1" in component_ids
+
+    async def test_handle_edit_shows_cap_notice_for_many_matches(
+        self, handler, mock_expert_service
+    ):
+        """Should tell user when only first 10 matches are shown."""
+        handler.reply_message = AsyncMock()
+        matches = [
+            ExpertData(
+                id=i,
+                pronoun="Ông",
+                expert_name=f"Nguyen Van {i}",
+                id_number=f"{i:012d}",
+            )
+            for i in range(1, 12)
+        ]
+        mock_expert_service.resolve_experts = AsyncMock(return_value=matches)
+
+        await handler._handle_edit(MagicMock(), "Nguyen")
+
+        handler.reply_message.assert_called_once()
+        assert "Hiển thị 10 kết quả đầu" in handler.reply_message.call_args[0][1]
+
+    async def test_handle_delete_resolves_by_cccd(
+        self, handler, mock_expert_service, mock_expert
+    ):
+        """Should resolve delete target by CCCD."""
+        handler.reply_message = AsyncMock()
+        mock_expert_service.resolve_experts = AsyncMock(return_value=[mock_expert])
+
+        await handler._handle_delete(MagicMock(), "012345678901")
+
+        mock_expert_service.resolve_experts.assert_awaited_once_with("012345678901")
+        handler.reply_message.assert_called_once()
+        assert "Xác nhận xóa chuyên gia" in handler.reply_message.call_args[0][1]
+
+    async def test_handle_delete_not_found(self, handler, mock_expert_service):
+        """Should report not found for unmatched keyword."""
+        handler.reply_message = AsyncMock()
+        mock_expert_service.resolve_experts = AsyncMock(return_value=[])
+
+        await handler._handle_delete(MagicMock(), "khong ton tai")
+
+        handler.reply_message.assert_called_once()
+        assert "Không tìm thấy chuyên gia" in handler.reply_message.call_args[0][1]
+
+    async def test_resolve_delete_button_routed(
+        self, handler, button_event, mock_expert_service, mock_expert
+    ):
+        """Should continue delete flow after ambiguity selection."""
+        button_event.button_id = "resolve_delete:1"
+        mock_expert_service.get_active_expert_by_id = AsyncMock(return_value=mock_expert)
+
+        await handler.handle_button_click(button_event)
+
+        handler.edit_message.assert_called_once()
+        assert "Xác nhận xóa chuyên gia" in handler.edit_message.call_args[0][2]
+
+    async def test_resolve_edit_button_routed(
+        self, handler, button_event, mock_expert_service, mock_expert
+    ):
+        """Should continue edit flow after ambiguity selection."""
+        button_event.button_id = "resolve_edit:1"
+        mock_expert_service.get_active_expert_by_id = AsyncMock(return_value=mock_expert)
+
+        await handler.handle_button_click(button_event)
+
+        handler.edit_message.assert_called_once()
+        assert "Đang sửa thông tin chuyên gia" in handler.edit_message.call_args[0][2]

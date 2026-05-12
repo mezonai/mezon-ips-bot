@@ -50,7 +50,7 @@ def mock_contract():
         project_name="Test Project Full Name",
         summary_activities="Testing activities summary",
         activity_purpose="Purpose of activity",
-        end_date=date(2024, 12, 31),
+        end_date=date(2099, 12, 31),
     )
 
 
@@ -143,6 +143,8 @@ def mock_contract_service():
     service.update_contract = AsyncMock()
     service.delete_contract = AsyncMock()
     service.get_contracts_by_expert_id = AsyncMock()
+    service.get_contracts_by_program_id = AsyncMock()
+    service.get_contracts_by_year = AsyncMock()
     service.add_activity = AsyncMock()
     service.delete_activity = AsyncMock()
     service.resolve_program_code = AsyncMock()
@@ -155,6 +157,8 @@ def mock_expert_service():
     """Create a mock ExpertService."""
     service = MagicMock()
     service.get_expert_by_id = AsyncMock()
+    service.get_active_expert_by_id = AsyncMock()
+    service.resolve_experts = AsyncMock()
     service.create_expert = AsyncMock()
     service.update_expert = AsyncMock()
     service.delete_expert = AsyncMock()
@@ -173,6 +177,15 @@ def mock_program_service():
     service.update_program = AsyncMock()
     service.delete_program = AsyncMock()
     service.list_all = AsyncMock()
+    return service
+
+
+@pytest.fixture
+def mock_word_export_service():
+    """Create a mock WordExportService."""
+    service = MagicMock()
+    service.export_contract = MagicMock()
+    service.export_acceptance_report = MagicMock()
     return service
 
 

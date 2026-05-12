@@ -55,6 +55,13 @@ class ExpertService:
             return None
         return self._to_data(expert)
 
+    async def get_active_expert_by_id(self, expert_id: int) -> Optional[ExpertData]:
+        """Get an active expert by ID."""
+        expert = await self._repository.get_active_by_id(expert_id)
+        if expert is None:
+            return None
+        return self._to_data(expert)
+
     async def find_by_name(self, name: str) -> List[ExpertData]:
         """Find experts by name (case-insensitive partial match)."""
         experts = await self._repository.find_by_name(name)
@@ -66,6 +73,18 @@ class ExpertService:
         if expert is None:
             return None
         return self._to_data(expert)
+
+    async def resolve_experts(self, keyword: str) -> List[ExpertData]:
+        """Resolve user input to experts by CCCD first, then by name."""
+        normalized = keyword.strip()
+        if not normalized:
+            return []
+
+        exact_match = await self.find_by_id_number(normalized)
+        if exact_match is not None:
+            return [exact_match]
+
+        return await self.find_by_name(normalized)
 
     async def update_expert(
         self, expert_id: int, data: ExpertData
