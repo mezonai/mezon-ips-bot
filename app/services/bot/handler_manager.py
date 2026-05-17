@@ -27,6 +27,7 @@ class HandlerManager:
         self.client_id = client_id
         self.require_mention = require_mention
         self.logger = logging.getLogger(__name__)
+        self._handlers = handlers
         self._command_map: dict[str, tuple[BaseMessageHandler, CommandInfo]] = {}
         for handler in handlers:
             for cmd, info in handler.get_command_handlers().items():
@@ -40,6 +41,39 @@ class HandlerManager:
             alias = cmd.lstrip(COMMAND_PREFIXS)
             if alias and alias != cmd:
                 self._alias_map[alias] = cmd
+
+    def _build_available_commands_message(self) -> str:
+        """Build a compact help message for top-level bot commands."""
+        descriptions = {
+            "*expert": "Quản lý chuyên gia",
+            "*program": "Quản lý chương trình",
+            "*contract": "Quản lý hợp đồng",
+        }
+        commands = sorted(
+            {
+                cmd
+                for cmd in self._command_map
+                if cmd.startswith(tuple(COMMAND_PREFIXS))
+            }
+        )
+
+        lines = ["📋 **Các lệnh hiện có của bot**", ""]
+        for cmd in commands:
+            description = descriptions.get(cmd, "Lệnh của bot")
+            lines.append(f"• `{cmd}` — {description}")
+        lines.extend(["", "Nhập một lệnh để bắt đầu."])
+        return "\n".join(lines)
+
+    async def _reply_available_commands(
+        self, message: api_pb2.ChannelMessage
+    ) -> None:
+        """Reply with available commands when the bot is invoked without content."""
+        if not self._handlers:
+            return
+        await self._handlers[0].reply_message(
+            message,
+            self._build_available_commands_message(),
+        )
 
     def _is_bot_mentioned(self, message: api_pb2.ChannelMessage) -> bool:
         """
@@ -82,6 +116,7 @@ class HandlerManager:
             if is_mentioned:
                 content = self._strip_mention(content)
                 if not content:
+                    await self._reply_available_commands(message)
                     return
             elif self.require_mention:
                 self.logger.debug(

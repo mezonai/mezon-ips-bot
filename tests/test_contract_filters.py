@@ -91,3 +91,29 @@ async def test_contract_command_lists_expert_contracts_by_year(
     text = handler.reply_message.call_args[0][1]
     assert "HD-002" in text
     assert text.index("HD-002") < text.index("HD-001")
+
+
+@pytest.mark.asyncio
+async def test_contract_command_without_args_shows_help(
+    mock_client,
+    mock_contract_service,
+    mock_expert_service,
+    mock_program_service,
+    mock_word_export_service,
+):
+    handler = ExpertHandler(
+        client=mock_client,
+        expert_service=mock_expert_service,
+        contract_service=mock_contract_service,
+        program_service=mock_program_service,
+        word_export_service=mock_word_export_service,
+        s3_upload_service=None,
+    )
+    handler.reply_message = AsyncMock()
+
+    await handler.handle_contract(MagicMock())
+
+    handler.reply_message.assert_awaited_once()
+    text = handler.reply_message.await_args.args[1]
+    assert "Quản lý hợp đồng" in text
+    assert "`*contract expert list year <YYYY>`" in text

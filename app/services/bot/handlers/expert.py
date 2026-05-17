@@ -558,6 +558,10 @@ class ExpertHandler(BaseMessageHandler):
         rest: str = None,
     ) -> None:
         """Handle *contract expert list year <YYYY>."""
+        if not target:
+            await self._handle_contract_help(message)
+            return
+
         if target != "expert" or action != "list" or filter_key != "year":
             await self.reply_message(
                 message,
@@ -602,6 +606,15 @@ class ExpertHandler(BaseMessageHandler):
             lines.append("")
 
         await self.reply_message(message, "\n".join(lines))
+
+    async def _handle_contract_help(self, message: Any) -> None:
+        """Show help message for contract commands."""
+        await self.reply_message(
+            message,
+            "📋 **Quản lý hợp đồng**\n\n"
+            "**Lệnh:**\n"
+            "• `*contract expert list year <YYYY>` — Danh sách hợp đồng chuyên gia theo năm",
+        )
 
     async def _handle_list(self, message: Any) -> None:
         experts = await self.expert_service.list_all()

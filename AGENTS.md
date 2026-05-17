@@ -19,8 +19,10 @@
 - DI container is the real registration boundary (`app/dependencies/container.py`): repositories, services, `MezonClient`, and bot handlers are wired there.
 - Current registered message handlers are `ExpertHandler` and `ProgramHandler`; adding a new handler requires a provider plus adding it to `handler_manager`'s `providers.List(...)`.
 - Commands are decorator-driven with `@command(...)` in `app/services/bot/handlers/base.py`; the handler manager parses the first token and supports aliases only for mention-triggered messages.
-- Current top-level bot commands are `*expert` and `*program`; subcommands are parsed inside those handler methods, not as separate decorated commands.
+- Current top-level bot commands are `*expert`, `*program`, and `*contract`; subcommands are parsed inside those handler methods, not as separate decorated commands.
 - `MEZON_BOT_REQUIRE_MENTION=true` makes the bot ignore unmentioned messages; mentioned aliases strip command prefixes (`expert` can map to `*expert`).
+- Workflow rule for bot commands: when adding a new top-level command or new subcommand flow, always provide a help response for the empty invocation path (for example `*expert`, `*program`, `*contract`) instead of returning a generic syntax error or silently ignoring the message.
+- Help coverage is part of the acceptance criteria for command changes: update the handler help text, update docs if command surface changes, and add or update tests for the empty-invocation/help path plus the main success path.
 
 ## Database/migrations
 - SQLAlchemy is async; `async_session_factory` is an `async_scoped_session` scoped to `asyncio.current_task`.
