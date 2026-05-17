@@ -76,8 +76,8 @@ fi
 log "Validating compose configuration"
 docker_compose config >/dev/null
 
-log "Pulling latest images"
-docker_compose pull
+log "Building application image from local source"
+docker_compose build app
 
 log "Starting services"
 docker_compose up -d --remove-orphans
