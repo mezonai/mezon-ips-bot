@@ -8,7 +8,6 @@ from typing import Any
 from mezon import ButtonBuilder, InteractiveBuilder
 from mezon.models import (
     ButtonMessageStyle,
-    ChannelMessageContent,
     InteractiveMessageProps,
     InputFieldOption,
     MessageActionRow,
@@ -25,6 +24,7 @@ from app.utils.formatters import format_currency_vn, format_date_vn
 
 class ProgramHandler(BaseMessageHandler):
     """Handler for *program command to manage programs."""
+    PAGE_SIZE = 10
 
     def __init__(
         self,
@@ -46,6 +46,33 @@ class ProgramHandler(BaseMessageHandler):
         return [
             MessageActionRow(components=[MessageComponent(**b) for b in bb.build()])
         ]
+
+    @staticmethod
+    def _paginate_items(
+        items: list[Any], page: int, page_size: int
+    ) -> tuple[list[Any], int, int]:
+        """Return the requested slice with clamped page metadata."""
+        total_items = len(items)
+        total_pages = max(1, (total_items + page_size - 1) // page_size)
+        current_page = min(max(page, 1), total_pages)
+        start = (current_page - 1) * page_size
+        end = start + page_size
+        return items[start:end], current_page, total_pages
+
+    def _build_pagination_components(
+        self, prev_button_id: str | None, next_button_id: str | None
+    ) -> list[MessageActionRow]:
+        """Build previous/next pagination buttons when needed."""
+        buttons: list[tuple[str, str, ButtonMessageStyle]] = []
+        if prev_button_id:
+            buttons.append(
+                (prev_button_id, "⬅️ Trang trước", ButtonMessageStyle.SECONDARY)
+            )
+        if next_button_id:
+            buttons.append(
+                (next_button_id, "➡️ Trang sau", ButtonMessageStyle.SECONDARY)
+            )
+        return self._build_buttons(buttons) if buttons else []
 
     def _build_form_buttons(
         self, save_btn_id: str = "save", cancel_btn_id: str = "cancel"
@@ -77,6 +104,12 @@ class ProgramHandler(BaseMessageHandler):
             options=InputFieldOption(defaultValue=existing.name if existing else None),
         )
         form.add_input_field(
+            "start_date", "Ngày bắt đầu",
+            placeholder="dd/mm/yyyy",
+            description="Ngày bắt đầu dự án (dd/mm/yyyy)",
+            options=InputFieldOption(defaultValue=format_date_vn(existing.start_date) if existing and existing.start_date else None),
+        )
+        form.add_input_field(
             "end_date", "Ngày kết thúc",
             placeholder="dd/mm/yyyy",
             description="Ngày hết hạn (dd/mm/yyyy)",
@@ -100,11 +133,24 @@ class ProgramHandler(BaseMessageHandler):
         """Format a single program record."""
         lines = [
             f"📋 **{p.program_code}** — {p.name}",
-            f"   📅 Hết hạn: {format_date_vn(p.end_date) if p.end_date else '—'}",
+            f"   🚀 Bắt đầu: {format_date_vn(p.start_date) if p.start_date else '—'}",
+            f"   📅 Kết thúc: {format_date_vn(p.end_date) if p.end_date else '—'}",
             f"   🎯 Mục đích: {p.activity_purpose or '—'}",
             f"   📝 Tóm tắt: {p.summary_activities or '—'}",
         ]
         return "\n".join(lines)
+
+    @staticmethod
+    def _parse_optional_date(raw_value: str, field_label: str) -> date_type | None:
+        """Parse dd/mm/yyyy into a date object."""
+        value = raw_value.strip()
+        if not value:
+            return None
+        try:
+            d, m, y = value.split("/")
+            return date_type(int(y), int(m), int(d))
+        except (ValueError, IndexError) as exc:
+            raise ValueError(f"{field_label} không hợp lệ. Format: dd/mm/yyyy") from exc
 
     def _build_program_action_buttons(self, program_id: int) -> list[MessageActionRow]:
         return self._build_buttons(
@@ -161,19 +207,71 @@ class ProgramHandler(BaseMessageHandler):
 • `*program delete <mã>` — Xóa chương trình"""
         await self.reply_message(message, help_text)
 
-    async def _handle_list(self, message) -> None:
-        """List all programs."""
+    async def _render_program_list_message(self, message, page: int = 1) -> None:
+        """Reply with a paginated program list."""
         programs = await self.program_service.list_programs()
         if not programs:
             await self.reply_message(message, "📋 Chưa có chương trình nào.")
             return
 
-        lines = [f"📋 **Danh sách chương trình ({len(programs)}):**\n"]
-        for p in programs:
+        page_items, current_page, total_pages = self._paginate_items(
+            programs, page, self.PAGE_SIZE
+        )
+        lines = [
+            f"📋 **Danh sách chương trình ({len(programs)}) - Trang {current_page}/{total_pages}:**\n"
+        ]
+        for p in page_items:
             lines.append(self._format_program(p))
             lines.append("")
 
-        await self.reply_message(message, "\n".join(lines))
+        components = self._build_pagination_components(
+            f"program_list_page:{current_page - 1}" if current_page > 1 else None,
+            f"program_list_page:{current_page + 1}"
+            if current_page < total_pages
+            else None,
+        )
+        await self.reply_message(message, "\n".join(lines), components=components)
+
+    async def _render_program_list_event(
+        self, event: realtime_pb2.MessageButtonClicked, page: int
+    ) -> None:
+        """Edit message with a paginated program list."""
+        programs = await self.program_service.list_programs()
+        if not programs:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                "📋 Chưa có chương trình nào.",
+                components=[],
+            )
+            return
+
+        page_items, current_page, total_pages = self._paginate_items(
+            programs, page, self.PAGE_SIZE
+        )
+        lines = [
+            f"📋 **Danh sách chương trình ({len(programs)}) - Trang {current_page}/{total_pages}:**\n"
+        ]
+        for p in page_items:
+            lines.append(self._format_program(p))
+            lines.append("")
+
+        components = self._build_pagination_components(
+            f"program_list_page:{current_page - 1}" if current_page > 1 else None,
+            f"program_list_page:{current_page + 1}"
+            if current_page < total_pages
+            else None,
+        )
+        await self.edit_message(
+            event.channel_id,
+            event.message_id,
+            "\n".join(lines),
+            components=components,
+        )
+
+    async def _handle_list(self, message) -> None:
+        """List all programs."""
+        await self._render_program_list_message(message, page=1)
 
     async def _handle_add(self, message) -> None:
         """Show form to add a new program."""
@@ -266,9 +364,17 @@ class ProgramHandler(BaseMessageHandler):
         elif button_id.startswith("view_program_contracts:"):
             program_id = int(button_id.split(":")[1])
             await self._handle_view_program_contracts(event, program_id)
+        elif button_id.startswith("program_list_page:"):
+            page = int(button_id.split(":")[1])
+            await self._render_program_list_event(event, page)
+        elif button_id.startswith("program_contracts_page:"):
+            _, program_id_str, page_str = button_id.split(":")
+            await self._handle_view_program_contracts(
+                event, int(program_id_str), int(page_str)
+            )
 
     async def _handle_view_program_contracts(
-        self, event: realtime_pb2.MessageButtonClicked, program_id: int
+        self, event: realtime_pb2.MessageButtonClicked, program_id: int, page: int = 1
     ) -> None:
         """Show contracts under one program."""
         if not self.contract_service:
@@ -294,8 +400,13 @@ class ProgramHandler(BaseMessageHandler):
             )
             return
 
-        lines = [f"📋 **Danh sách hợp đồng: {program.program_code} - {program.name}**\n"]
-        for contract in contracts:
+        page_items, current_page, total_pages = self._paginate_items(
+            contracts, page, self.PAGE_SIZE
+        )
+        lines = [
+            f"📋 **Danh sách hợp đồng: {program.program_code} - {program.name} - Trang {current_page}/{total_pages}**\n"
+        ]
+        for contract in page_items:
             activities = await self.contract_service.get_activities_by_contract_id(contract.id)
             lines.append(
                 f"• **{contract.order_id}** ({contract.dd:02d}/{contract.mm:02d}/{contract.yyyy})\n"
@@ -307,7 +418,15 @@ class ProgramHandler(BaseMessageHandler):
             event.channel_id,
             event.message_id,
             "\n".join(lines),
-            components=self._build_buttons(
+            components=self._build_pagination_components(
+                f"program_contracts_page:{program.id}:{current_page - 1}"
+                if current_page > 1
+                else None,
+                f"program_contracts_page:{program.id}:{current_page + 1}"
+                if current_page < total_pages
+                else None,
+            )
+            + self._build_buttons(
                 [(f"edit_program:{program.id}", "✏️ Sửa CT", ButtonMessageStyle.PRIMARY)]
             ),
         )
@@ -336,18 +455,20 @@ class ProgramHandler(BaseMessageHandler):
                 )
                 return
 
-            end_date = None
-            end_date_str = extra_data.get("end_date", "").strip()
-            if end_date_str:
-                try:
-                    d, m, y = end_date_str.split("/")
-                    end_date = date_type(int(y), int(m), int(d))
-                except (ValueError, IndexError):
-                    await self.edit_message(
-                        event.channel_id, event.message_id,
-                        "❌ Ngày kết thúc không hợp lệ. Format: dd/mm/yyyy", components=[]
-                    )
-                    return
+            try:
+                start_date = self._parse_optional_date(
+                    extra_data.get("start_date", ""),
+                    "Ngày bắt đầu",
+                )
+                end_date = self._parse_optional_date(
+                    extra_data.get("end_date", ""),
+                    "Ngày kết thúc",
+                )
+            except ValueError as exc:
+                await self.edit_message(
+                    event.channel_id, event.message_id, f"❌ {exc}", components=[]
+                )
+                return
 
             program_data = ProgramData(
                 id=0,
@@ -355,6 +476,7 @@ class ProgramHandler(BaseMessageHandler):
                 name=name,
                 summary_activities=extra_data.get("summary_activities"),
                 activity_purpose=extra_data.get("activity_purpose"),
+                start_date=start_date,
                 end_date=end_date,
             )
 
@@ -367,6 +489,10 @@ class ProgramHandler(BaseMessageHandler):
                 event.channel_id, event.message_id,
                 f"✅ Đã tạo chương trình **{created.program_code}**\n\n{self._format_program(created)}",
                 components=[],
+            )
+        except ValueError as e:
+            await self.edit_message(
+                event.channel_id, event.message_id, f"❌ {e}", components=[]
             )
         except Exception as e:
             self.logger.error("Error saving program: %s", e, exc_info=True)
@@ -389,18 +515,20 @@ class ProgramHandler(BaseMessageHandler):
                 )
                 return
 
-            end_date = None
-            end_date_str = extra_data.get("end_date", "").strip()
-            if end_date_str:
-                try:
-                    d, m, y = end_date_str.split("/")
-                    end_date = date_type(int(y), int(m), int(d))
-                except (ValueError, IndexError):
-                    await self.edit_message(
-                        event.channel_id, event.message_id,
-                        "❌ Ngày kết thúc không hợp lệ. Format: dd/mm/yyyy", components=[]
-                    )
-                    return
+            try:
+                start_date = self._parse_optional_date(
+                    extra_data.get("start_date", ""),
+                    "Ngày bắt đầu",
+                )
+                end_date = self._parse_optional_date(
+                    extra_data.get("end_date", ""),
+                    "Ngày kết thúc",
+                )
+            except ValueError as exc:
+                await self.edit_message(
+                    event.channel_id, event.message_id, f"❌ {exc}", components=[]
+                )
+                return
 
             program_data = ProgramData(
                 id=program_id,
@@ -408,6 +536,7 @@ class ProgramHandler(BaseMessageHandler):
                 name=name,
                 summary_activities=extra_data.get("summary_activities"),
                 activity_purpose=extra_data.get("activity_purpose"),
+                start_date=start_date,
                 end_date=end_date,
             )
 
@@ -426,6 +555,10 @@ class ProgramHandler(BaseMessageHandler):
                 event.channel_id, event.message_id,
                 f"✅ Đã cập nhật chương trình **{updated.program_code}**\n\n{self._format_program(updated)}",
                 components=[],
+            )
+        except ValueError as e:
+            await self.edit_message(
+                event.channel_id, event.message_id, f"❌ {e}", components=[]
             )
         except Exception as e:
             self.logger.error("Error updating program: %s", e, exc_info=True)

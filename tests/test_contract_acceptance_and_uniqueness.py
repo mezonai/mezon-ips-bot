@@ -30,6 +30,100 @@ async def test_contract_service_rejects_duplicate_order_id_in_same_project():
 
 
 @pytest.mark.asyncio
+async def test_contract_service_rejects_contract_date_before_program_start():
+    contract_repository = MagicMock()
+    contract_repository.get_contract_by_order_id_and_project = AsyncMock(return_value=None)
+    program_repository = MagicMock()
+    program_repository.get_program_by_id = AsyncMock(
+        return_value=MagicMock(start_date=date(2026, 2, 1), end_date=date(2026, 12, 31))
+    )
+
+    service = ContractService(contract_repository, program_repository)
+
+    with pytest.raises(
+        ValueError,
+        match="Ngày hợp đồng không được sớm hơn ngày bắt đầu dự án",
+    ):
+        await service.create_contract(
+            ContractData(
+                id=0,
+                order_id="HD-001",
+                dd=1,
+                mm=1,
+                yyyy=2026,
+                abbreviated_project="PROJ-001",
+                expert_id=1,
+                program_id=1,
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_contract_service_rejects_contract_date_after_program_end():
+    contract_repository = MagicMock()
+    contract_repository.get_contract_by_order_id_and_project = AsyncMock(return_value=None)
+    program_repository = MagicMock()
+    program_repository.get_program_by_id = AsyncMock(
+        return_value=MagicMock(start_date=date(2026, 1, 1), end_date=date(2026, 3, 31))
+    )
+
+    service = ContractService(contract_repository, program_repository)
+
+    with pytest.raises(
+        ValueError,
+        match="Ngày hợp đồng không được muộn hơn ngày kết thúc dự án",
+    ):
+        await service.create_contract(
+            ContractData(
+                id=0,
+                order_id="HD-001",
+                dd=1,
+                mm=4,
+                yyyy=2026,
+                abbreviated_project="PROJ-001",
+                expert_id=1,
+                program_id=1,
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_contract_service_allows_contract_date_within_program_range():
+    contract_repository = MagicMock()
+    contract_repository.get_contract_by_order_id_and_project = AsyncMock(return_value=None)
+    contract_repository.create_contract = AsyncMock(side_effect=lambda contract: contract)
+    program_repository = MagicMock()
+    program_repository.get_program_by_id = AsyncMock(
+        return_value=MagicMock(
+            id=1,
+            name="Program 1",
+            summary_activities="Summary",
+            activity_purpose="Purpose",
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
+        )
+    )
+
+    service = ContractService(contract_repository, program_repository)
+
+    created = await service.create_contract(
+        ContractData(
+            id=0,
+            order_id="HD-001",
+            dd=15,
+            mm=6,
+            yyyy=2026,
+            abbreviated_project="PROJ-001",
+            expert_id=1,
+            program_id=1,
+        )
+    )
+
+    assert created.order_id == "HD-001"
+    contract_repository.create_contract.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_acceptance_export_blocked_when_today_exceeds_contract_end_date(
     mock_client,
     mock_expert_service,

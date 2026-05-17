@@ -87,7 +87,7 @@ class ExpertRepository(BaseRepository):
             result = await session.execute(
                 select(Expert)
                 .where(Expert.deleted_at.is_(None))
-                .order_by(Expert.expert_name)
+                .order_by(Expert.created_at.asc())
                 .limit(limit)
             )
             return result.scalars().all()

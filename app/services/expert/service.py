@@ -30,8 +30,21 @@ class ExpertService:
     def __init__(self, expert_repository: ExpertRepository):
         self._repository = expert_repository
 
+    async def _validate_unique_id_number(
+        self, id_number: Optional[str], exclude_expert_id: int | None = None
+    ) -> None:
+        """Ensure CCCD/id_number is unique among active experts."""
+        normalized = (id_number or "").strip()
+        if not normalized:
+            return
+
+        existing = await self._repository.find_by_id_number(normalized)
+        if existing is not None and existing.id != exclude_expert_id:
+            raise ValueError(f"CCCD `{normalized}` đã tồn tại.")
+
     async def create_expert(self, data: ExpertData) -> ExpertData:
         """Create a new expert record."""
+        await self._validate_unique_id_number(data.id_number)
         expert = Expert(
             pronoun=data.pronoun,
             expert_name=data.expert_name,
@@ -93,6 +106,8 @@ class ExpertService:
         expert = await self._repository.get_by_id(expert_id)
         if expert is None:
             return None
+
+        await self._validate_unique_id_number(data.id_number, exclude_expert_id=expert_id)
 
         expert.pronoun = data.pronoun
         expert.expert_name = data.expert_name

@@ -13,6 +13,7 @@ class Program(RWModel, DateTimeModelMixin):
     name = Column(String(200), nullable=False)
     summary_activities = Column(String(500), nullable=True)
     activity_purpose = Column(String(255), nullable=True)
+    start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
 
     contracts = relationship(

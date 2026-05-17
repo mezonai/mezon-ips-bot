@@ -29,6 +29,7 @@ class ContractData:
     project_name: Optional[str] = None
     summary_activities: Optional[str] = None
     activity_purpose: Optional[str] = None
+    start_date: Optional[date_type] = None
     end_date: Optional[date_type] = None
 
 
@@ -57,6 +58,25 @@ class ContractService:
         self._contract_repo = contract_repository
         self._program_repo = program_repository
 
+    async def _validate_contract_date_range(self, data: ContractData) -> None:
+        """Validate contract date against the program date range."""
+        if self._program_repo is None or not data.program_id:
+            return
+
+        program = await self._program_repo.get_program_by_id(data.program_id)
+        if program is None:
+            return
+
+        contract_date = date_type(data.yyyy, data.mm, data.dd)
+        if program.start_date and contract_date < program.start_date:
+            raise ValueError(
+                "Ngày hợp đồng không được sớm hơn ngày bắt đầu dự án."
+            )
+        if program.end_date and contract_date > program.end_date:
+            raise ValueError(
+                "Ngày hợp đồng không được muộn hơn ngày kết thúc dự án."
+            )
+
     async def resolve_program_code(self, program_code: str) -> Optional[int]:
         """Resolve a program_code to its program_id. Returns None if not found."""
         if self._program_repo is None:
@@ -76,6 +96,8 @@ class ContractService:
             raise ValueError(
                 "Số hợp đồng đã tồn tại trong cùng chương trình/dự án."
             )
+
+        await self._validate_contract_date_range(data)
 
         contract = ExpertContract(
             order_id=data.order_id,
@@ -223,6 +245,7 @@ class ContractService:
             project_name=program.name if program else None,
             summary_activities=program.summary_activities if program else None,
             activity_purpose=program.activity_purpose if program else None,
+            start_date=program.start_date if program else None,
             end_date=program.end_date if program else None,
         )
 

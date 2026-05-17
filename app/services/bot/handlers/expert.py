@@ -31,6 +31,7 @@ from app.utils import number_to_vietnamese_text
 
 class ExpertHandler(BaseMessageHandler):
     """Handler for *expert command to manage experts."""
+    PAGE_SIZE = 10
 
     def __init__(
         self,
@@ -47,6 +48,7 @@ class ExpertHandler(BaseMessageHandler):
         self.program_service = program_service
         self.word_export_service = word_export_service
         self.s3_upload_service = s3_upload_service
+        self._processed_expert_submits: set[str] = set()
         self._processed_activity_submits: set[str] = set()
 
     def _build_buttons(
@@ -61,6 +63,33 @@ class ExpertHandler(BaseMessageHandler):
         return [
             MessageActionRow(components=[MessageComponent(**b) for b in bb.build()])
         ]
+
+    @staticmethod
+    def _paginate_items(
+        items: list[Any], page: int, page_size: int
+    ) -> tuple[list[Any], int, int]:
+        """Return the requested slice with clamped page metadata."""
+        total_items = len(items)
+        total_pages = max(1, (total_items + page_size - 1) // page_size)
+        current_page = min(max(page, 1), total_pages)
+        start = (current_page - 1) * page_size
+        end = start + page_size
+        return items[start:end], current_page, total_pages
+
+    def _build_pagination_components(
+        self, prev_button_id: str | None, next_button_id: str | None
+    ) -> list[MessageActionRow]:
+        """Build previous/next pagination buttons when needed."""
+        buttons: list[tuple[str, str, ButtonMessageStyle]] = []
+        if prev_button_id:
+            buttons.append(
+                (prev_button_id, "⬅️ Trang trước", ButtonMessageStyle.SECONDARY)
+            )
+        if next_button_id:
+            buttons.append(
+                (next_button_id, "➡️ Trang sau", ButtonMessageStyle.SECONDARY)
+            )
+        return self._build_buttons(buttons) if buttons else []
 
     @staticmethod
     def _format_working_days(working_days: float) -> str:
@@ -184,7 +213,12 @@ class ExpertHandler(BaseMessageHandler):
         )
 
     def _build_contract_list_rows(
-        self, prof_id: int, contracts: list, allow_create: bool = True
+        self,
+        prof_id: int,
+        contracts: list,
+        allow_create: bool = True,
+        page: int = 1,
+        total_pages: int = 1,
     ) -> list[MessageActionRow]:
         """Build button rows for contract list, one button per contract."""
         rows = []
@@ -196,6 +230,16 @@ class ExpertHandler(BaseMessageHandler):
             built = bb.build()
             rows.append(
                 MessageActionRow(components=[MessageComponent(**b) for b in built])
+            )
+
+        if total_pages > 1:
+            rows.extend(
+                self._build_pagination_components(
+                    f"expert_contracts_page:{prof_id}:{page - 1}" if page > 1 else None,
+                    f"expert_contracts_page:{prof_id}:{page + 1}"
+                    if page < total_pages
+                    else None,
+                )
             )
 
         bb2 = ButtonBuilder()
@@ -236,6 +280,7 @@ class ExpertHandler(BaseMessageHandler):
             "nationality",
             "Quốc tịch",
             placeholder="Việt Nam",
+            options=InputFieldOption(defaultValue="Việt Nam")
         )
         form.add_input_field(
             "address",
@@ -582,30 +627,7 @@ class ExpertHandler(BaseMessageHandler):
             )
             return
 
-        contracts = await self.contract_service.get_contracts_by_year(year)
-        if not contracts:
-            await self.reply_message(
-                message,
-                f"📋 Không có hợp đồng chuyên gia nào trong năm **{year}**.",
-            )
-            return
-
-        lines = [f"📋 **Danh sách hợp đồng chuyên gia năm {year}**\n"]
-        for contract in contracts:
-            expert = await self.expert_service.get_expert_by_id(contract.expert_id)
-            activities = await self.contract_service.get_activities_by_contract_id(contract.id)
-            expert_name = (
-                f"{expert.pronoun} {expert.expert_name}" if expert else f"Chuyên gia #{contract.expert_id}"
-            )
-            lines.append(
-                f"• **{contract.order_id}** ({contract.dd:02d}/{contract.mm:02d}/{contract.yyyy})\n"
-                f"  Chuyên gia: {expert_name}\n"
-                f"  Dự án: {contract.project_name or contract.abbreviated_project or '—'}\n"
-                f"  Hoạt động: {len(activities)} | Tổng: {format_currency_vn(contract.total_amount)} | Thực nhận: {format_currency_vn(contract.final_amount)}"
-            )
-            lines.append("")
-
-        await self.reply_message(message, "\n".join(lines))
+        await self._render_contract_year_list_message(message, year=year, page=1)
 
     async def _handle_contract_help(self, message: Any) -> None:
         """Show help message for contract commands."""
@@ -616,7 +638,39 @@ class ExpertHandler(BaseMessageHandler):
             "• `*contract expert list year <YYYY>` — Danh sách hợp đồng chuyên gia theo năm",
         )
 
-    async def _handle_list(self, message: Any) -> None:
+    def _build_expert_list_payload(
+        self, experts: list[ExpertData], page: int
+    ) -> tuple[str, list[InteractiveMessageProps], list[MessageActionRow]]:
+        """Build paginated expert list payload."""
+        page_items, current_page, total_pages = self._paginate_items(
+            experts, page, self.PAGE_SIZE
+        )
+        form = InteractiveBuilder("📋 Danh sách chuyên gia")
+        form.set_color("#10B981")
+        form.set_description(
+            f"Tổng cộng: {len(experts)} chuyên gia | Trang {current_page}/{total_pages}"
+        )
+
+        for p in page_items:
+            form.add_field(
+                f"{p.id}. {p.pronoun} {p.expert_name}",
+                f"CCCD: {p.id_number or '—'} | SĐT: {p.phone or '—'}",
+            )
+
+        components = self._build_pagination_components(
+            f"expert_list_page:{current_page - 1}" if current_page > 1 else None,
+            f"expert_list_page:{current_page + 1}"
+            if current_page < total_pages
+            else None,
+        )
+        return (
+            f"📋 **Danh sách {len(experts)} chuyên gia - Trang {current_page}/{total_pages}:**",
+            [InteractiveMessageProps(**form.build())],
+            components,
+        )
+
+    async def _render_expert_list_message(self, message: Any, page: int = 1) -> None:
+        """Reply with the paginated expert list."""
         experts = await self.expert_service.list_all()
         if not experts:
             await self.reply_message(
@@ -624,21 +678,125 @@ class ExpertHandler(BaseMessageHandler):
             )
             return
 
-        form = InteractiveBuilder("📋 Danh sách chuyên gia")
-        form.set_color("#10B981")
-        form.set_description(f"Tổng cộng: {len(experts)} chuyên gia")
+        text, embeds, components = self._build_expert_list_payload(experts, page)
+        await self.reply_message(message, text, embeds=embeds, components=components)
 
-        for p in experts:
-            form.add_field(
-                f"{p.id}. {p.pronoun} {p.expert_name}",
-                f"CCCD: {p.id_number or '—'} | SĐT: {p.phone or '—'}",
+    async def _render_expert_list_event(
+        self, event: realtime_pb2.MessageButtonClicked, page: int
+    ) -> None:
+        """Edit message with the paginated expert list."""
+        experts = await self.expert_service.list_all()
+        if not experts:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                "📋 Chưa có chuyên gia nào trong hệ thống.",
+                components=[],
             )
+            return
 
-        await self.reply_message(
-            message,
-            f"📋 **Danh sách {len(experts)} chuyên gia:**",
-            embeds=[InteractiveMessageProps(**form.build())],
+        text, embeds, components = self._build_expert_list_payload(experts, page)
+        await self.edit_message(
+            event.channel_id,
+            event.message_id,
+            text,
+            embeds=embeds,
+            components=components,
         )
+
+    async def _render_contract_year_list_message(
+        self, message: Any, year: int, page: int = 1
+    ) -> None:
+        """Reply with paginated expert contracts for a year."""
+        contracts = await self.contract_service.get_contracts_by_year(year)
+        if not contracts:
+            await self.reply_message(
+                message,
+                f"📋 Không có hợp đồng chuyên gia nào trong năm **{year}**.",
+            )
+            return
+
+        page_items, current_page, total_pages = self._paginate_items(
+            contracts, page, self.PAGE_SIZE
+        )
+        lines = [
+            f"📋 **Danh sách hợp đồng chuyên gia năm {year} - Trang {current_page}/{total_pages}**\n"
+        ]
+        for contract in page_items:
+            expert = await self.expert_service.get_expert_by_id(contract.expert_id)
+            activities = await self.contract_service.get_activities_by_contract_id(contract.id)
+            expert_name = (
+                f"{expert.pronoun} {expert.expert_name}"
+                if expert
+                else f"Chuyên gia #{contract.expert_id}"
+            )
+            lines.append(
+                f"• **{contract.order_id}** ({contract.dd:02d}/{contract.mm:02d}/{contract.yyyy})\n"
+                f"  Chuyên gia: {expert_name}\n"
+                f"  Dự án: {contract.project_name or contract.abbreviated_project or '—'}\n"
+                f"  Hoạt động: {len(activities)} | Tổng: {format_currency_vn(contract.total_amount)} | Thực nhận: {format_currency_vn(contract.final_amount)}"
+            )
+            lines.append("")
+
+        components = self._build_pagination_components(
+            f"contract_year_page:{year}:{current_page - 1}" if current_page > 1 else None,
+            f"contract_year_page:{year}:{current_page + 1}"
+            if current_page < total_pages
+            else None,
+        )
+        await self.reply_message(message, "\n".join(lines), components=components)
+
+    async def _render_contract_year_list_event(
+        self, event: realtime_pb2.MessageButtonClicked, year: int, page: int
+    ) -> None:
+        """Edit message with paginated expert contracts for a year."""
+        contracts = await self.contract_service.get_contracts_by_year(year)
+        if not contracts:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                f"📋 Không có hợp đồng chuyên gia nào trong năm **{year}**.",
+                components=[],
+            )
+            return
+
+        page_items, current_page, total_pages = self._paginate_items(
+            contracts, page, self.PAGE_SIZE
+        )
+        lines = [
+            f"📋 **Danh sách hợp đồng chuyên gia năm {year} - Trang {current_page}/{total_pages}**\n"
+        ]
+        for contract in page_items:
+            expert = await self.expert_service.get_expert_by_id(contract.expert_id)
+            activities = await self.contract_service.get_activities_by_contract_id(contract.id)
+            expert_name = (
+                f"{expert.pronoun} {expert.expert_name}"
+                if expert
+                else f"Chuyên gia #{contract.expert_id}"
+            )
+            lines.append(
+                f"• **{contract.order_id}** ({contract.dd:02d}/{contract.mm:02d}/{contract.yyyy})\n"
+                f"  Chuyên gia: {expert_name}\n"
+                f"  Dự án: {contract.project_name or contract.abbreviated_project or '—'}\n"
+                f"  Hoạt động: {len(activities)} | Tổng: {format_currency_vn(contract.total_amount)} | Thực nhận: {format_currency_vn(contract.final_amount)}"
+            )
+            lines.append("")
+
+        components = self._build_pagination_components(
+            f"contract_year_page:{year}:{current_page - 1}" if current_page > 1 else None,
+            f"contract_year_page:{year}:{current_page + 1}"
+            if current_page < total_pages
+            else None,
+        )
+        await self.edit_message(
+            event.channel_id,
+            event.message_id,
+            "\n".join(lines),
+            components=components,
+        )
+
+    async def _handle_list(self, message: Any) -> None:
+        await self._render_expert_list_message(message, page=1)
 
     async def _handle_add(self, message: Any) -> None:
         """Send interactive form to add a new expert."""
@@ -860,6 +1018,25 @@ class ExpertHandler(BaseMessageHandler):
                 await self._handle_list_contracts_button(event, prof_id)
                 return
 
+            if event.button_id.startswith("expert_list_page:"):
+                page = int(event.button_id.split(":")[1])
+                await self._render_expert_list_event(event, page)
+                return
+
+            if event.button_id.startswith("contract_year_page:"):
+                _, year_str, page_str = event.button_id.split(":")
+                await self._render_contract_year_list_event(
+                    event, int(year_str), int(page_str)
+                )
+                return
+
+            if event.button_id.startswith("expert_contracts_page:"):
+                _, prof_id_str, page_str = event.button_id.split(":")
+                await self._handle_list_contracts_button(
+                    event, int(prof_id_str), int(page_str)
+                )
+                return
+
             if event.button_id.startswith("save_contract:"):
                 prof_id = int(event.button_id.split(":")[1])
                 await self._handle_save_contract(event, prof_id, extra_data)
@@ -1006,6 +1183,16 @@ class ExpertHandler(BaseMessageHandler):
         self, event: realtime_pb2.MessageButtonClicked, extra_data: dict[str, Any]
     ) -> None:
         """Handle save button from add form."""
+        submit_key = str(event.message_id)
+        if submit_key in self._processed_expert_submits:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                "✅ Chuyên gia đã được lưu trước đó.",
+                components=[],
+            )
+            return
+
         try:
             expert_name = extra_data.get("expert_name", "").strip()
             if not expert_name:
@@ -1044,6 +1231,7 @@ class ExpertHandler(BaseMessageHandler):
             )
 
             created = await self.expert_service.create_expert(data)
+            self._processed_expert_submits.add(submit_key)
 
             # Clear form data
             form_tracker.clear_form_data(str(event.message_id))
@@ -1055,6 +1243,13 @@ class ExpertHandler(BaseMessageHandler):
                 f"ID: {created.id}\n"
                 f"{created.pronoun} {created.expert_name}\n"
                 f"CCCD: {created.id_number or '—'}",
+                components=[],
+            )
+        except ValueError as e:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                f"❌ {e}",
                 components=[],
             )
         except Exception as e:
@@ -1119,7 +1314,17 @@ class ExpertHandler(BaseMessageHandler):
             bank_name=extra_data.get("bank_name") or existing.bank_name,
         )
 
-        updated = await self.expert_service.update_expert(prof_id, data)
+        try:
+            updated = await self.expert_service.update_expert(prof_id, data)
+        except ValueError as e:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                f"❌ {e}",
+                components=[],
+            )
+            return
+
         if updated:
             # Clear form data
             form_tracker.clear_form_data(str(event.message_id))
@@ -1339,6 +1544,13 @@ class ExpertHandler(BaseMessageHandler):
                         components=self._build_activity_buttons(created.id),
                     ),
                 )
+        except ValueError as e:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                f"❌ {e}",
+                components=[],
+            )
         except Exception as e:
             self.logger.error("Error saving contract: %s", e, exc_info=True)
             await self.edit_message(
@@ -1583,7 +1795,7 @@ class ExpertHandler(BaseMessageHandler):
         )
 
     async def _handle_list_contracts_button(
-        self, event: realtime_pb2.MessageButtonClicked, prof_id: int
+        self, event: realtime_pb2.MessageButtonClicked, prof_id: int, page: int = 1
     ) -> None:
         """Handle list contracts button."""
         if not self.contract_service:
@@ -1609,9 +1821,14 @@ class ExpertHandler(BaseMessageHandler):
         expert_title = (
             f"{prof.pronoun} {prof.expert_name}" if prof else f"chuyên gia #{prof_id}"
         )
-        summary = [f"📋 **Danh sách hợp đồng: {expert_title}**\n"]
+        page_items, current_page, total_pages = self._paginate_items(
+            contracts, page, self.PAGE_SIZE
+        )
+        summary = [
+            f"📋 **Danh sách hợp đồng: {expert_title} - Trang {current_page}/{total_pages}**\n"
+        ]
 
-        for c in contracts:
+        for c in page_items:
             activities = await self.contract_service.get_activities_by_contract_id(c.id)
             summary.append(
                 f"• **{c.order_id}** ({c.dd}/{c.mm}/{c.yyyy})\n"
@@ -1625,7 +1842,11 @@ class ExpertHandler(BaseMessageHandler):
             event.message_id,
             "\n".join(summary),
             components=self._build_contract_list_rows(
-                prof_id, contracts, allow_create=prof is not None
+                prof_id,
+                page_items,
+                allow_create=prof is not None,
+                page=current_page,
+                total_pages=total_pages,
             ),
         )
 

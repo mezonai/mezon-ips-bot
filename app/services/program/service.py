@@ -20,6 +20,7 @@ class ProgramData:
     name: str
     summary_activities: Optional[str] = None
     activity_purpose: Optional[str] = None
+    start_date: Optional[date_type] = None
     end_date: Optional[date_type] = None
 
 
@@ -29,13 +30,23 @@ class ProgramService:
     def __init__(self, program_repository: ProgramRepository):
         self._repository = program_repository
 
+    @staticmethod
+    def _validate_date_range(data: ProgramData) -> None:
+        """Validate program start/end dates."""
+        if data.start_date and data.end_date and data.start_date > data.end_date:
+            raise ValueError(
+                "Ngày bắt đầu dự án không được muộn hơn ngày kết thúc dự án."
+            )
+
     async def create_program(self, data: ProgramData) -> ProgramData:
         """Create a new program."""
+        self._validate_date_range(data)
         program = Program(
             program_code=normalize_program_code(data.program_code),
             name=data.name,
             summary_activities=data.summary_activities,
             activity_purpose=data.activity_purpose,
+            start_date=data.start_date,
             end_date=data.end_date,
         )
         created = await self._repository.create_program(program)
@@ -66,6 +77,7 @@ class ProgramService:
         self, program_id: int, data: ProgramData
     ) -> Optional[ProgramData]:
         """Update a program's information."""
+        self._validate_date_range(data)
         program = await self._repository.get_program_by_id(program_id)
         if program is None:
             return None
@@ -74,6 +86,7 @@ class ProgramService:
         program.name = data.name
         program.summary_activities = data.summary_activities
         program.activity_purpose = data.activity_purpose
+        program.start_date = data.start_date
         program.end_date = data.end_date
 
         updated = await self._repository.update_program(program)
@@ -91,5 +104,6 @@ class ProgramService:
             name=program.name,
             summary_activities=program.summary_activities,
             activity_purpose=program.activity_purpose,
+            start_date=program.start_date,
             end_date=program.end_date,
         )
