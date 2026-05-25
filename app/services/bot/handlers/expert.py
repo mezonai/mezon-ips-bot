@@ -463,8 +463,7 @@ class ExpertHandler(BaseMessageHandler):
         form.add_input_field(
             "rate",
             "Rate (VNĐ/ngày)",
-            placeholder="500000",
-            options=InputFieldOption(type="number"),
+            placeholder="5000000",
         )
         return form
 
@@ -2041,8 +2040,9 @@ class ExpertHandler(BaseMessageHandler):
 
             output_dir = "exports"
             os.makedirs(output_dir, exist_ok=True)
+            safe_order_id = contract.order_id.replace("/", "-").replace("\\", "-")
             output_filename = (
-                f"HDCG_{contract.order_id}_{prof.expert_name.replace(' ', '_')}.docx"
+                f"HDCG_{safe_order_id}_{prof.expert_name.replace(' ', '_')}.docx"
             )
             output_path = os.path.join(output_dir, output_filename)
 
@@ -2265,8 +2265,9 @@ class ExpertHandler(BaseMessageHandler):
 
             output_dir = "exports"
             os.makedirs(output_dir, exist_ok=True)
+            safe_order_id = contract.order_id.replace("/", "-").replace("\\", "-")
             output_filename = (
-                f"BBNT_{contract.order_id}_{prof.expert_name.replace(' ', '_')}.docx"
+                f"BBNT_{safe_order_id}_{prof.expert_name.replace(' ', '_')}.docx"
             )
             output_path = os.path.join(output_dir, output_filename)
 
