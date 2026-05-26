@@ -235,12 +235,11 @@ class WordExportService:
         if additional_info:
             additional_info = f"-{additional_info}"
 
-        contract_name = get_acceptance_display_name(contract)
+        contract_name = get_contract_display_name(contract)
         acceptance_name = get_acceptance_display_name(contract)
         context = {
             # Contract info
-            "acceptance_name": acceptance_name,
-            "order_id": contract_name,
+            "acceptance": acceptance_name,
             "order": contract_name,
             "dd": contract.dd,
             "mm": contract.mm,
