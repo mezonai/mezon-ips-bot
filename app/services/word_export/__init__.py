@@ -106,7 +106,7 @@ class WordExportService:
         # Format additional_information with '-' prefix if not empty
         additional_info = contract.additional_information or ""
         if additional_info:
-            additional_info = f"- {additional_info}"
+            additional_info = f"-{additional_info}"
 
         context = {
             # Contract info
@@ -215,7 +215,7 @@ class WordExportService:
         # Format additional_information with '-' prefix if not empty
         additional_info = contract.additional_information or ""
         if additional_info:
-            additional_info = f"- {additional_info}"
+            additional_info = f"-{additional_info}"
 
         context = {
             # Contract info
