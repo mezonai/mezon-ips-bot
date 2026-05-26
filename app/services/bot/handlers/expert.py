@@ -23,7 +23,7 @@ from app.services.bot.form_tracker import form_tracker
 from app.services.expert.service import ExpertService, ExpertData
 from app.services.contract.service import ContractService, ContractData, ActivityData
 from app.services.program.service import ProgramService, normalize_program_code
-from app.services.word_export import WordExportService
+from app.services.word_export import WordExportService, get_acceptance_display_name
 from app.services.s3_upload import S3UploadService
 from app.utils.formatters import format_currency_vn, format_date_vn
 from app.utils import number_to_vietnamese_text
@@ -527,6 +527,33 @@ class ExpertHandler(BaseMessageHandler):
             "rate",
             "Rate (VNĐ/ngày)",
             placeholder="5000000",
+        )
+        return form
+
+    def _build_acceptance_metadata_form(self) -> InteractiveBuilder:
+        """Build acceptance report metadata form."""
+        today = date_type.today()
+        form = InteractiveBuilder("🧾 Thông tin biên bản nghiệm thu")
+        form.set_description("Điền thông tin riêng cho BBNT")
+        form.set_color("#5865F2")
+        form.add_input_field(
+            "acceptance_date",
+            "Ngày nghiệm thu",
+            placeholder="dd/mm/yyyy",
+            options=InputFieldOption(
+                defaultValue=f"{today.day:02d}/{today.month:02d}/{today.year}"
+            ),
+        )
+        form.add_input_field(
+            "acceptance_round",
+            "Số lần nghiệm thu",
+            placeholder="1",
+        )
+        form.add_input_field(
+            "acceptance_additional_information",
+            "Thông tin thêm BBNT",
+            placeholder="(nếu có)",
+            options=InputFieldOption(textarea=True),
         )
         return form
 
@@ -2395,9 +2422,9 @@ class ExpertHandler(BaseMessageHandler):
                 )
                 return
 
-            # If only 1 activity, export directly
+            # If only 1 activity, collect acceptance metadata before export
             if len(activities) == 1:
-                await self._export_acceptance_direct(event, contract_id, activities)
+                await self._show_acceptance_metadata_form(event, contract_id)
                 return
 
             # Multiple activities - show selection form
@@ -2411,6 +2438,28 @@ class ExpertHandler(BaseMessageHandler):
                 f"❌ Lỗi: {e}",
                 components=[],
             )
+
+    async def _show_acceptance_metadata_form(
+        self, event: realtime_pb2.MessageButtonClicked, contract_id: int
+    ) -> None:
+        """Show acceptance metadata form for single-activity export."""
+        form = self._build_acceptance_metadata_form()
+        await self.edit_message(
+            event.channel_id,
+            event.message_id,
+            "🧾 **Thông tin biên bản nghiệm thu**",
+            embeds=[InteractiveMessageProps(**form.build())],
+            components=self._build_buttons(
+                [
+                    (
+                        f"export_acceptance:{contract_id}",
+                        "✅ Xuất biên bản",
+                        ButtonMessageStyle.SUCCESS,
+                    ),
+                    ("cancel", "❌ Hủy", ButtonMessageStyle.DANGER),
+                ]
+            ),
+        )
 
     async def _show_activity_selection_form(
         self,
@@ -2441,6 +2490,29 @@ class ExpertHandler(BaseMessageHandler):
             max_options=len(activities),
             description="Chọn nhiều hoạt động bằng cách click vào các mục bên trên",
         )
+        form.add_input_field(
+            "acceptance_date",
+            "Ngày nghiệm thu",
+            placeholder="dd/mm/yyyy",
+            options=InputFieldOption(
+                defaultValue=(
+                    f"{date_type.today().day:02d}/"
+                    f"{date_type.today().month:02d}/"
+                    f"{date_type.today().year}"
+                )
+            ),
+        )
+        form.add_input_field(
+            "acceptance_round",
+            "Số lần nghiệm thu",
+            placeholder="1",
+        )
+        form.add_input_field(
+            "acceptance_additional_information",
+            "Thông tin thêm BBNT",
+            placeholder="(nếu có)",
+            options=InputFieldOption(textarea=True),
+        )
 
         await self.edit_message(
             event.channel_id,
@@ -2464,6 +2536,9 @@ class ExpertHandler(BaseMessageHandler):
         event: realtime_pb2.MessageButtonClicked,
         contract_id: int,
         activities: list[ActivityData],
+        acceptance_date: date_type | None = None,
+        acceptance_round: str | None = None,
+        acceptance_additional_information: str | None = None,
     ) -> None:
         """Export acceptance report directly."""
         if not self.word_export_service or not self.contract_service:
@@ -2486,8 +2561,8 @@ class ExpertHandler(BaseMessageHandler):
                 )
                 return
 
-            today = date_type.today()
-            if contract.end_date and today > contract.end_date:
+            rendered_acceptance_date = acceptance_date or date_type.today()
+            if contract.end_date and rendered_acceptance_date > contract.end_date:
                 await self.edit_message(
                     event.channel_id,
                     event.message_id,
@@ -2511,7 +2586,12 @@ class ExpertHandler(BaseMessageHandler):
 
             output_dir = "exports"
             os.makedirs(output_dir, exist_ok=True)
-            safe_order_id = contract.order_id.replace("/", "-").replace("\\", "-")
+            acceptance_name = get_acceptance_display_name(
+                contract,
+                acceptance_round,
+                acceptance_additional_information,
+            )
+            safe_order_id = acceptance_name.replace("/", "-").replace("\\", "-")
             output_filename = (
                 f"BBNT_{safe_order_id}_{prof.expert_name.replace(' ', '_')}.docx"
             )
@@ -2519,7 +2599,13 @@ class ExpertHandler(BaseMessageHandler):
 
             # Export acceptance report
             self.word_export_service.export_acceptance_report(
-                contract, prof, activities, output_path
+                contract,
+                prof,
+                activities,
+                output_path,
+                acceptance_date=acceptance_date,
+                acceptance_round=acceptance_round,
+                acceptance_additional_information=acceptance_additional_information,
             )
 
             # Upload file
@@ -2551,7 +2637,7 @@ class ExpertHandler(BaseMessageHandler):
                     content=ChannelMessageContent(
                         t=f"✅ Đã xuất biên bản nghiệm thu!\n\n"
                         f"📄 File: `{output_filename}`\n"
-                        f"Hợp đồng: **{contract.order_id}**\n"
+                        f"Biên bản: **{acceptance_name}**\n"
                         f"Chuyên gia: **{prof.pronoun} {prof.expert_name}**\n"
                         f"Hoạt động: {len(activities)}"
                     ),
@@ -2598,31 +2684,59 @@ class ExpertHandler(BaseMessageHandler):
             return
 
         try:
-            # Get selected activity IDs from radio field (comma-separated)
-            selected_ids_raw = extra_data.get("selected_activity_ids", "")
-            if not selected_ids_raw:
-                await self.edit_message(
-                    event.channel_id,
-                    event.message_id,
-                    "❌ Vui lòng chọn ít nhất 1 hoạt động.",
-                    components=[],
-                )
-                return
+            acceptance_date = date_type.today()
+            if extra_data.get("acceptance_date"):
+                try:
+                    d, m, y = extra_data["acceptance_date"].split("/")
+                    acceptance_date = date_type(int(y), int(m), int(d))
+                except (ValueError, TypeError, IndexError):
+                    await self.edit_message(
+                        event.channel_id,
+                        event.message_id,
+                        "❌ Ngày nghiệm thu không hợp lệ. Định dạng: dd/mm/yyyy",
+                        components=[],
+                    )
+                    return
 
-            # Parse selected IDs - handle both list and comma-separated string
-            if isinstance(selected_ids_raw, list):
-                selected_ids = [int(id_str) for id_str in selected_ids_raw]
-            else:
-                selected_ids = [
-                    int(id_str.strip()) for id_str in selected_ids_raw.split(",")
-                ]
+            acceptance_round = (
+                str(extra_data.get("acceptance_round", "")).strip() or None
+            )
+            acceptance_additional_information = (
+                str(extra_data.get("acceptance_additional_information", "")).strip()
+                or None
+            )
 
             all_activities = await self.contract_service.get_activities_by_contract_id(
                 contract_id
             )
-            selected_activities = [
-                act for act in all_activities if act.id in selected_ids
-            ]
+            if not isinstance(all_activities, list):
+                all_activities = []
+
+            # Get selected activity IDs from radio field (comma-separated)
+            selected_ids_raw = extra_data.get("selected_activity_ids", "")
+            if not selected_ids_raw:
+                if len(all_activities) == 1:
+                    selected_activities = all_activities
+                else:
+                    await self.edit_message(
+                        event.channel_id,
+                        event.message_id,
+                        "❌ Vui lòng chọn ít nhất 1 hoạt động.",
+                        components=[],
+                    )
+                    return
+            else:
+                # Parse selected IDs - handle both list and comma-separated string
+                if isinstance(selected_ids_raw, list):
+                    selected_ids = [int(id_str) for id_str in selected_ids_raw]
+                else:
+                    selected_ids = [
+                        int(id_str.strip()) for id_str in selected_ids_raw.split(",")
+                    ]
+
+                selected_activities = [
+                    act for act in all_activities if act.id in selected_ids
+                ]
 
             if not selected_activities:
                 await self.edit_message(
@@ -2634,7 +2748,12 @@ class ExpertHandler(BaseMessageHandler):
                 return
 
             await self._export_acceptance_direct(
-                event, contract_id, selected_activities
+                event,
+                contract_id,
+                selected_activities,
+                acceptance_date=acceptance_date,
+                acceptance_round=acceptance_round,
+                acceptance_additional_information=acceptance_additional_information,
             )
 
         except Exception as e:

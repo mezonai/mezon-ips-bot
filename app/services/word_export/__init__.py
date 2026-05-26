@@ -1,5 +1,6 @@
 """Word document export service for contracts using docxtpl."""
 
+from datetime import date as date_type
 from typing import List
 from docxtpl import DocxTemplate
 
@@ -20,12 +21,26 @@ def get_contract_display_name(contract: ContractData) -> str:
         base += f"-{contract.additional_information}"
     return base
 
-def get_acceptance_display_name(contract: ContractData) -> str:
+def get_acceptance_display_name(
+    contract: ContractData,
+    acceptance_round: str | None = None,
+    acceptance_additional_information: str | None = None,
+) -> str:
     """Get full formatted acceptance display name."""
     base = f"{contract.order_id}/{contract.yyyy}/BBNT-{contract.abbreviated_project or ''}"
-    if contract.additional_information:
-        base += f"-{contract.additional_information}"
+    suffix = acceptance_round or acceptance_additional_information
+    if suffix:
+        base += f"-{suffix}"
     return base
+
+
+def get_acceptance_title(acceptance_round: str | None = None) -> str:
+    """Get acceptance report title."""
+    round_text = f" LẦN {acceptance_round}" if acceptance_round else ""
+    return (
+        f"BIÊN BẢN BÀN GIAO VÀ NGHIỆM THU{round_text} "
+        "HỢP ĐỒNG THUÊ KHOÁN CÔNG VIỆC"
+    )
 
 
 def format_sum_activities(text: str | None) -> str:
@@ -168,6 +183,9 @@ class WordExportService:
         expert: ExpertData,
         activities: List[ActivityData],
         output_path: str,
+        acceptance_date: date_type | None = None,
+        acceptance_round: str | None = None,
+        acceptance_additional_information: str | None = None,
     ) -> str:
         """Export acceptance report (biên bản nghiệm thu) to Word document.
 
@@ -184,7 +202,14 @@ class WordExportService:
         doc = DocxTemplate(self.acceptance_template_path)
 
         # Build context for acceptance report
-        context = self._build_acceptance_context(contract, expert, activities)
+        context = self._build_acceptance_context(
+            contract,
+            expert,
+            activities,
+            acceptance_date=acceptance_date,
+            acceptance_round=acceptance_round,
+            acceptance_additional_information=acceptance_additional_information,
+        )
 
         # Render template
         doc.render(context)
@@ -198,8 +223,12 @@ class WordExportService:
         contract: ContractData,
         expert: ExpertData,
         activities: List[ActivityData],
+        acceptance_date: date_type | None = None,
+        acceptance_round: str | None = None,
+        acceptance_additional_information: str | None = None,
     ) -> dict:
         """Build context dictionary for acceptance report template rendering."""
+        rendered_date = acceptance_date or date_type.today()
         issued_date_str = (
             expert.issued_date.strftime("%d/%m/%Y") if expert.issued_date else ""
         )
@@ -230,20 +259,27 @@ class WordExportService:
         final_accepted_amount = total_accepted_amount - tax_amount
         final_accepted_amount_text = number_to_vietnamese_text(final_accepted_amount)
 
-        # Format additional_information with '-' prefix if not empty
-        additional_info = contract.additional_information or ""
+        # Format BBNT-specific additional_information with '-' prefix if not empty
+        additional_info = acceptance_additional_information or ""
         if additional_info:
             additional_info = f"-{additional_info}"
 
         contract_name = get_contract_display_name(contract)
-        acceptance_name = get_acceptance_display_name(contract)
+        acceptance_name = get_acceptance_display_name(
+            contract, acceptance_round, acceptance_additional_information
+        )
+        acceptance_title = get_acceptance_title(acceptance_round)
         context = {
             # Contract info
             "acceptance": acceptance_name,
-            "order": contract_name,
-            "dd": contract.dd,
-            "mm": contract.mm,
-            "yyyy": contract.yyyy,
+            "acceptance_title": acceptance_title,
+            "acceptance_round": acceptance_round or "",
+            "acceptance_additional_information": acceptance_additional_information or "",
+            "order_id": contract_name,
+            "order": acceptance_title,
+            "dd": rendered_date.day,
+            "mm": rendered_date.month,
+            "yyyy": rendered_date.year,
             "abbreviated_project": contract.abbreviated_project or "",
             "additional_information": additional_info,
             # Expert info

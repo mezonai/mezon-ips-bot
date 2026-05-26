@@ -118,9 +118,21 @@ class TestBuildAcceptanceContext:
     def test_context_contract_values(self, sample_contract, sample_expert, sample_activities):
         """Should correctly map contract fields to context."""
         service = WordExportService()
-        context = service._build_acceptance_context(sample_contract, sample_expert, sample_activities)
+        context = service._build_acceptance_context(
+            sample_contract,
+            sample_expert,
+            sample_activities,
+            acceptance_date=date(2024, 6, 1),
+            acceptance_round="1",
+            acceptance_additional_information="NT1",
+        )
 
         assert context["order_id"] == "HDCG-2024-001/2024/HDCG-TEST-PROJECT-Additional test info"
+        assert context["acceptance"] == "HDCG-2024-001/2024/BBNT-TEST-PROJECT-1"
+        assert context["order"] == (
+            "BIÊN BẢN BÀN GIAO VÀ NGHIỆM THU LẦN 1 "
+            "HỢP ĐỒNG THUÊ KHOÁN CÔNG VIỆC"
+        )
         assert context["dd"] == 1
         assert context["mm"] == 6
         assert context["yyyy"] == 2024
