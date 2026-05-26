@@ -99,10 +99,13 @@ class ExpertHandler(BaseMessageHandler):
     @staticmethod
     def _format_contract_display_name(contract: ContractData) -> str:
         """Format display name for contract from raw order id."""
-        return (
+        base = (
             f"{contract.order_id}/{contract.yyyy}/HDCG-"
             f"{contract.abbreviated_project or '—'}"
         )
+        if contract.additional_information:
+            base += f"-{contract.additional_information}"
+        return base
 
     def _build_form_buttons(
         self, save_btn_id: str = "save", cancel_btn_id: str = "cancel"

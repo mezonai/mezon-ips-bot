@@ -526,4 +526,4 @@ class TestEditContract:
         assert saved_data.yyyy == 2024
         assert saved_data.abbreviated_project == "TEST-PROJECT-2"
         assert "Đã cập nhật hợp đồng" in handler.edit_message.call_args[0][2]
-        assert "HD-NEW-001/2024/HDCG-TEST-PROJECT-2" in handler.edit_message.call_args[0][2]
+        assert "HD-NEW-001/2024/HDCG-TEST-PROJECT-2-Updated info" in handler.edit_message.call_args[0][2]
