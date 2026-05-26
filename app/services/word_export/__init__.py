@@ -20,6 +20,13 @@ def get_contract_display_name(contract: ContractData) -> str:
         base += f"-{contract.additional_information}"
     return base
 
+def get_acceptance_display_name(contract: ContractData) -> str:
+    """Get full formatted acceptance display name."""
+    base = f"{contract.order_id}/{contract.yyyy}/BBNT-{contract.abbreviated_project or ''}"
+    if contract.additional_information:
+        base += f"-{contract.additional_information}"
+    return base
+
 
 def format_sum_activities(text: str | None) -> str:
     """Format sum_activities to lowercase and separate with semicolon."""
@@ -228,12 +235,13 @@ class WordExportService:
         if additional_info:
             additional_info = f"-{additional_info}"
 
-        display_name = get_contract_display_name(contract)
-
+        contract_name = get_acceptance_display_name(contract)
+        acceptance_name = get_acceptance_display_name(contract)
         context = {
             # Contract info
-            "order_id": display_name,
-            "order": display_name,
+            "acceptance_name": acceptance_name,
+            "order_id": contract_name,
+            "order": contract_name,
             "dd": contract.dd,
             "mm": contract.mm,
             "yyyy": contract.yyyy,
