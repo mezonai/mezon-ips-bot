@@ -272,11 +272,12 @@ class WordExportService:
         context = {
             # Contract info
             "acceptance": acceptance_name,
+            "acceptance_name": acceptance_title,
             "acceptance_title": acceptance_title,
             "acceptance_round": acceptance_round or "",
             "acceptance_additional_information": acceptance_additional_information or "",
             "order_id": contract_name,
-            "order": acceptance_title,
+            "order": contract_name,
             "dd": rendered_date.day,
             "mm": rendered_date.month,
             "yyyy": rendered_date.year,

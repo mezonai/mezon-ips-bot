@@ -129,7 +129,8 @@ class TestBuildAcceptanceContext:
 
         assert context["order_id"] == "HDCG-2024-001/2024/HDCG-TEST-PROJECT-Additional test info"
         assert context["acceptance"] == "HDCG-2024-001/2024/BBNT-TEST-PROJECT-1"
-        assert context["order"] == (
+        assert context["order"] == "HDCG-2024-001/2024/HDCG-TEST-PROJECT-Additional test info"
+        assert context["acceptance_name"] == (
             "BIÊN BẢN BÀN GIAO VÀ NGHIỆM THU LẦN 1 "
             "HỢP ĐỒNG THUÊ KHOÁN CÔNG VIỆC"
         )
