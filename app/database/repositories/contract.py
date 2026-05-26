@@ -32,6 +32,24 @@ class ContractRepository(BaseRepository):
             )
             return result.scalars().first()
 
+    async def get_contract_by_unique_attrs(
+        self, yyyy: int, abbreviated_project: str, additional_information: Optional[str]
+    ) -> Optional[ExpertContract]:
+        """Get non-deleted contract by yyyy, abbreviated_project, and additional_information."""
+        async with self._get_session() as session:
+            query = select(ExpertContract).where(
+                ExpertContract.yyyy == yyyy,
+                ExpertContract.abbreviated_project == abbreviated_project,
+                ExpertContract.deleted_at.is_(None),
+            )
+            if additional_information is None:
+                query = query.where(ExpertContract.additional_information.is_(None))
+            else:
+                query = query.where(ExpertContract.additional_information == additional_information)
+
+            result = await session.execute(query)
+            return result.scalars().first()
+
     async def get_contract_by_id(self, contract_id: int) -> Optional[ExpertContract]:
         """Get contract by ID with activities and program."""
         async with self._get_session() as session:

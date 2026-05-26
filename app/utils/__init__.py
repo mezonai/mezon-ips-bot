@@ -21,8 +21,14 @@ def number_to_vietnamese_text(number: float) -> str:
     # Units
     ones = ["", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"]
 
-    def read_group(n: int) -> str:
-        """Read a 3-digit group."""
+    def read_group(n: int, needs_zero_hundred: bool = False) -> str:
+        """Read a 3-digit group.
+
+        Args:
+            n: The 3-digit number (0-999).
+            needs_zero_hundred: If True and hundred=0, prefix with "không trăm"
+                               to separate from a higher group.
+        """
         if n == 0:
             return ""
 
@@ -36,6 +42,8 @@ def number_to_vietnamese_text(number: float) -> str:
         if hundred > 0:
             result.append(ones[hundred])
             result.append("trăm")
+        elif needs_zero_hundred:
+            result.append("không trăm")
 
         # Tens
         if ten > 1:
@@ -43,7 +51,7 @@ def number_to_vietnamese_text(number: float) -> str:
             result.append("mươi")
         elif ten == 1:
             result.append("mười")
-        elif hundred > 0 and one > 0:
+        elif (hundred > 0 or needs_zero_hundred) and one > 0:
             result.append("lẻ")
 
         # Ones
@@ -69,13 +77,16 @@ def number_to_vietnamese_text(number: float) -> str:
 
     # Build result
     result_parts = []
+    seen_higher_group = False
     for i in range(len(groups) - 1, -1, -1):
         if groups[i] > 0:
-            group_text = read_group(groups[i])
+            needs_zero_hundred = seen_higher_group
+            group_text = read_group(groups[i], needs_zero_hundred)
             if group_text:
                 result_parts.append(group_text)
                 if i > 0 and i < len(scales):
                     result_parts.append(scales[i])
+            seen_higher_group = True
 
     result = " ".join(result_parts)
 

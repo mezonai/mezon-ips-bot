@@ -13,6 +13,20 @@ def format_working_days(working_days: float) -> str:
     return f"{working_days:g}"
 
 
+def format_sum_activities(text: str | None) -> str:
+    """Format sum_activities to lowercase and separate with semicolon."""
+    if not text:
+        return ""
+    import re
+    # Lowercase
+    text = text.lower()
+    # Normalize separators (newlines, commas, dots, semicolons) to semicolon
+    text = re.sub(r'[\n\r,.;]+', ';', text)
+    # Split by semicolon, clean, and join back
+    parts = [p.strip() for p in text.split(';') if p.strip()]
+    return '; '.join(parts)
+
+
 class WordExportService:
     """Service for exporting contracts to Word documents using templates."""
 
@@ -115,7 +129,7 @@ class WordExportService:
             "bank_account": expert.bank_account or "",
             "bank_name": expert.bank_name or "",
             # Project info (from Program)
-            "sum_activities": contract.summary_activities or "",
+            "sum_activities": format_sum_activities(contract.summary_activities),
             "activity_purpose": contract.activity_purpose or "",
             "project_name": contract.project_name or "",
             "end_date": end_date_str,
@@ -224,7 +238,7 @@ class WordExportService:
             "bank_account": expert.bank_account or "",
             "bank_name": expert.bank_name or "",
             # Project info
-            "sum_activities": contract.summary_activities or "",
+            "sum_activities": format_sum_activities(contract.summary_activities),
             "activity_purpose": contract.activity_purpose or "",
             "project_name": contract.project_name or "",
             "end_date": end_date_str,

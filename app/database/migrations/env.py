@@ -15,7 +15,7 @@ from app.database.models.rwmodel import RWModel
 load_dotenv(override=True)
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[3]))
 
-DATABASE_URI = app_settings.db_uri
+DATABASE_URI = str(app_settings.db_uri).replace("%", "%%")
 
 print(DATABASE_URI, "============")
 
@@ -26,7 +26,7 @@ if config.config_file_name is not None:
 
 target_metadata = RWModel.metadata
 
-config.set_main_option("sqlalchemy.url", str(DATABASE_URI))
+config.set_main_option("sqlalchemy.url", DATABASE_URI)
 
 
 def run_migrations_offline() -> None:

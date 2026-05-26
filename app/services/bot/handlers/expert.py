@@ -96,6 +96,14 @@ class ExpertHandler(BaseMessageHandler):
         """Format working days without trailing .0."""
         return f"{working_days:g}"
 
+    @staticmethod
+    def _format_contract_display_name(contract: ContractData) -> str:
+        """Format display name for contract from raw order id."""
+        return (
+            f"{contract.order_id}/{contract.yyyy}/HDCG-"
+            f"{contract.abbreviated_project or '—'}"
+        )
+
     def _build_form_buttons(
         self, save_btn_id: str = "save", cancel_btn_id: str = "cancel"
     ) -> list[MessageActionRow]:
@@ -148,6 +156,18 @@ class ExpertHandler(BaseMessageHandler):
                 (
                     f"save_contract:{prof_id}",
                     "✅ Tạo hợp đồng",
+                    ButtonMessageStyle.SUCCESS,
+                ),
+                ("cancel", "❌ Hủy", ButtonMessageStyle.DANGER),
+            ]
+        )
+
+    def _build_contract_edit_buttons(self, contract_id: int) -> list[MessageActionRow]:
+        return self._build_buttons(
+            [
+                (
+                    f"save_edit_contract:{contract_id}",
+                    "✅ Cập nhật hợp đồng",
                     ButtonMessageStyle.SUCCESS,
                 ),
                 ("cancel", "❌ Hủy", ButtonMessageStyle.DANGER),
@@ -224,8 +244,9 @@ class ExpertHandler(BaseMessageHandler):
         rows = []
         for c in contracts:
             bb = ButtonBuilder()
+            display_name = self._format_contract_display_name(c)
             bb.add_button(
-                f"view_contract:{c.id}", f"📄 {c.order_id}", ButtonMessageStyle.PRIMARY
+                f"view_contract:{c.id}", f"📄 {display_name}", ButtonMessageStyle.PRIMARY
             )
             built = bb.build()
             rows.append(
@@ -418,7 +439,7 @@ class ExpertHandler(BaseMessageHandler):
         form.add_input_field(
             "order_id",
             "Mã hợp đồng",
-            placeholder="HD-2026-001",
+            placeholder="025",
         )
         form.add_input_field(
             "contract_date",
@@ -435,6 +456,45 @@ class ExpertHandler(BaseMessageHandler):
             "Thông tin thêm",
             placeholder="(nếu có)",
             options=InputFieldOption(textarea=True),
+        )
+        return form
+
+    def _build_contract_edit_form(
+        self, prof: ExpertData, contract: ContractData
+    ) -> InteractiveBuilder:
+        """Build interactive form for editing contract."""
+        form = InteractiveBuilder(f"✏️ Sửa hợp đồng {contract.order_id}")
+        form.set_description(f"Hợp đồng cho: {prof.pronoun} {prof.expert_name}")
+        form.set_color("#F59E0B")
+
+        form.add_input_field(
+            "order_id",
+            "Mã hợp đồng",
+            placeholder="025",
+            options=InputFieldOption(defaultValue=contract.order_id),
+        )
+        form.add_input_field(
+            "contract_date",
+            "Ngày hợp đồng",
+            placeholder="07/05/2026",
+            options=InputFieldOption(
+                defaultValue=f"{contract.dd:02d}/{contract.mm:02d}/{contract.yyyy}"
+            ),
+        )
+        form.add_input_field(
+            "program_code",
+            "Mã dự án",
+            placeholder="PROG-001",
+            options=InputFieldOption(defaultValue=contract.abbreviated_project or ""),
+        )
+        form.add_input_field(
+            "additional_information",
+            "Thông tin thêm",
+            placeholder="(nếu có)",
+            options=InputFieldOption(
+                textarea=True,
+                defaultValue=contract.additional_information or "",
+            ),
         )
         return form
 
@@ -1041,6 +1101,11 @@ class ExpertHandler(BaseMessageHandler):
                 await self._handle_save_contract(event, prof_id, extra_data)
                 return
 
+            if event.button_id.startswith("save_edit_contract:"):
+                contract_id = int(event.button_id.split(":")[1])
+                await self._handle_save_edit_contract(event, contract_id, extra_data)
+                return
+
             if event.button_id.startswith("save_activity:"):
                 contract_id = int(event.button_id.split(":")[1])
                 await self._handle_save_activity(event, contract_id, extra_data)
@@ -1526,7 +1591,7 @@ class ExpertHandler(BaseMessageHandler):
             await self.edit_message(
                 event.channel_id,
                 event.message_id,
-                f"✅ Đã tạo hợp đồng **{created.order_id}**.",
+                f"✅ Đã tạo hợp đồng **{self._format_contract_display_name(created)}**.",
                 components=[],
             )
 
@@ -1878,7 +1943,7 @@ class ExpertHandler(BaseMessageHandler):
         expt = await self.expert_service.get_expert_by_id(contract.expert_id)
 
         lines = [
-            f"📄 **Chi tiết hợp đồng: {contract.order_id}**\n",
+            f"📄 **Chi tiết hợp đồng: {self._format_contract_display_name(contract)}**\n",
             f"👤 Chuyên gia: **{expt.pronoun} {expt.expert_name}** (ID: {expt.id})"
             if expt
             else "👤 Chuyên gia: —",
@@ -1958,12 +2023,190 @@ class ExpertHandler(BaseMessageHandler):
         self, event: realtime_pb2.MessageButtonClicked, contract_id: int
     ) -> None:
         """Handle edit contract button."""
+        if not self.contract_service:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                "❌ Contract service không khả dụng.",
+                components=[],
+            )
+            return
+
+        contract = await self.contract_service.get_contract_by_id(contract_id)
+        if not contract:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                "❌ Không tìm thấy hợp đồng.",
+                components=[],
+            )
+            return
+
+        prof = await self.expert_service.get_active_expert_by_id(contract.expert_id)
+        if not prof:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                "❌ Chuyên gia không còn hoạt động hoặc không tồn tại.",
+                components=[],
+            )
+            return
+
+        form = self._build_contract_edit_form(prof, contract)
         await self.edit_message(
             event.channel_id,
             event.message_id,
-            "⚠️ Chức năng sửa hợp đồng đang được phát triển.",
-            components=[],
+            f"✏️ Đang sửa hợp đồng: **{self._format_contract_display_name(contract)}**",
+            embeds=[InteractiveMessageProps(**form.build())],
+            components=self._build_contract_edit_buttons(contract_id),
         )
+
+    async def _handle_save_edit_contract(
+        self,
+        event: realtime_pb2.MessageButtonClicked,
+        contract_id: int,
+        extra_data: dict[str, Any],
+    ) -> None:
+        """Handle edit contract form submission."""
+        if not self.contract_service:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                "❌ Contract service không khả dụng.",
+                components=[],
+            )
+            return
+
+        contract = await self.contract_service.get_contract_by_id(contract_id)
+        if not contract:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                "❌ Không tìm thấy hợp đồng.",
+                components=[],
+            )
+            return
+
+        try:
+            order_id = extra_data.get("order_id", contract.order_id).strip()
+            if not order_id:
+                await self.edit_message(
+                    event.channel_id,
+                    event.message_id,
+                    "❌ Thiếu mã hợp đồng.",
+                    components=[],
+                )
+                return
+
+            try:
+                contract_date_str = extra_data.get(
+                    "contract_date", f"{contract.dd:02d}/{contract.mm:02d}/{contract.yyyy}"
+                ).strip()
+                d, m, y = contract_date_str.split("/")
+                dd, mm, yyyy = int(d), int(m), int(y)
+            except (ValueError, TypeError, IndexError):
+                await self.edit_message(
+                    event.channel_id,
+                    event.message_id,
+                    "❌ Ngày hợp đồng không hợp lệ. Định dạng: dd/mm/yyyy",
+                    components=[],
+                )
+                return
+
+            program_code = normalize_program_code(
+                extra_data.get("program_code", contract.abbreviated_project)
+            )
+            if not program_code:
+                await self.edit_message(
+                    event.channel_id,
+                    event.message_id,
+                    "❌ Thiếu mã chương trình.",
+                    components=[],
+                )
+                return
+
+            program_id = await self.contract_service.resolve_program_code(program_code)
+            if not program_id:
+                await self.edit_message(
+                    event.channel_id,
+                    event.message_id,
+                    f"❌ Không tìm thấy chương trình với mã '{program_code}'.",
+                    components=[],
+                )
+                return
+
+            if order_id != contract.order_id or program_code != contract.abbreviated_project:
+                duplicate_contract = (
+                    await self.contract_service.has_contract_order_in_project(
+                        order_id,
+                        program_code,
+                    )
+                )
+                if duplicate_contract:
+                    await self.edit_message(
+                        event.channel_id,
+                        event.message_id,
+                        f"❌ Số hợp đồng **{order_id}** đã tồn tại trong dự án **{program_code}**.",
+                        components=[],
+                    )
+                    return
+
+            updated_data = ContractData(
+                id=contract.id,
+                order_id=order_id,
+                dd=dd,
+                mm=mm,
+                yyyy=yyyy,
+                abbreviated_project=program_code,
+                additional_information=(
+                    extra_data.get("additional_information")
+                    if "additional_information" in extra_data
+                    else contract.additional_information
+                ),
+                total_amount=contract.total_amount,
+                tax=contract.tax,
+                final_amount=contract.final_amount,
+                expert_id=contract.expert_id,
+                program_id=program_id,
+            )
+
+            updated = await self.contract_service.update_contract(contract_id, updated_data)
+            form_tracker.clear_form_data(str(event.message_id))
+
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                f"✅ Đã cập nhật hợp đồng **{self._format_contract_display_name(updated)}**.",
+                components=self._build_buttons(
+                    [
+                        (
+                            f"view_contract:{updated.id}",
+                            "📄 Xem chi tiết",
+                            ButtonMessageStyle.PRIMARY,
+                        ),
+                        (
+                            f"list_contracts:{updated.expert_id}",
+                            "⬅️ Danh sách HĐ",
+                            ButtonMessageStyle.SECONDARY,
+                        ),
+                    ]
+                ),
+            )
+        except ValueError as e:
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                f"❌ {e}",
+                components=[],
+            )
+        except Exception as e:
+            self.logger.error("Error updating contract: %s", e, exc_info=True)
+            await self.edit_message(
+                event.channel_id,
+                event.message_id,
+                f"❌ Lỗi cập nhật hợp đồng: {e}",
+                components=[],
+            )
 
     async def _handle_delete_contract_confirm(
         self, event: realtime_pb2.MessageButtonClicked, contract_id: int

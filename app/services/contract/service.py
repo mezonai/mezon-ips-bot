@@ -97,6 +97,16 @@ class ContractService:
                 "Số hợp đồng đã tồn tại trong cùng chương trình/dự án."
             )
 
+        existing_unique = await self._contract_repo.get_contract_by_unique_attrs(
+            data.yyyy,
+            data.abbreviated_project,
+            data.additional_information,
+        )
+        if existing_unique is not None:
+            raise ValueError(
+                "Hợp đồng có cùng năm, dự án và thông tin thêm đã tồn tại."
+            )
+
         await self._validate_contract_date_range(data)
 
         contract = ExpertContract(
@@ -154,6 +164,25 @@ class ContractService:
         contract = await self._contract_repo.get_contract_by_id(contract_id)
         if contract is None:
             return None
+
+        # Check unique constraints on update
+        if data.order_id != contract.order_id or data.abbreviated_project != contract.abbreviated_project:
+            duplicate = await self._contract_repo.get_contract_by_order_id_and_project(
+                data.order_id,
+                data.abbreviated_project,
+            )
+            if duplicate is not None and duplicate.id != contract_id:
+                raise ValueError("Số hợp đồng đã tồn tại trong cùng chương trình/dự án.")
+
+        existing_unique = await self._contract_repo.get_contract_by_unique_attrs(
+            data.yyyy,
+            data.abbreviated_project,
+            data.additional_information,
+        )
+        if existing_unique is not None and existing_unique.id != contract_id:
+            raise ValueError(
+                "Hợp đồng có cùng năm, dự án và thông tin thêm đã tồn tại."
+            )
 
         contract.order_id = data.order_id
         contract.dd = data.dd

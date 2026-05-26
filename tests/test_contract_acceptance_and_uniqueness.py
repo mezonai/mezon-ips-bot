@@ -124,6 +124,34 @@ async def test_contract_service_allows_contract_date_within_program_range():
 
 
 @pytest.mark.asyncio
+async def test_contract_service_rejects_duplicate_unique_attrs():
+    contract_repository = MagicMock()
+    contract_repository.get_contract_by_order_id_and_project = AsyncMock(return_value=None)
+    contract_repository.get_contract_by_unique_attrs = AsyncMock(return_value=MagicMock())
+    program_repository = MagicMock()
+
+    service = ContractService(contract_repository, program_repository)
+
+    with pytest.raises(
+        ValueError,
+        match="Hợp đồng có cùng năm, dự án và thông tin thêm đã tồn tại",
+    ):
+        await service.create_contract(
+            ContractData(
+                id=0,
+                order_id="HD-001",
+                dd=15,
+                mm=6,
+                yyyy=2026,
+                abbreviated_project="PROJ-001",
+                additional_information="Some Info",
+                expert_id=1,
+                program_id=1,
+            )
+        )
+
+
+@pytest.mark.asyncio
 async def test_acceptance_export_blocked_when_today_exceeds_contract_end_date(
     mock_client,
     mock_expert_service,

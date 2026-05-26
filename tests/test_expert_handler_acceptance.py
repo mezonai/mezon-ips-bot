@@ -277,6 +277,17 @@ class TestButtonRouting:
 
         handler._handle_export_acceptance.assert_called_once()
 
+    async def test_edit_contract_button_routed(
+        self, handler, button_event
+    ):
+        """Should route edit_contract: button to _handle_edit_contract_button."""
+        button_event.button_id = "edit_contract:1"
+        handler._handle_edit_contract_button = AsyncMock()
+
+        await handler.handle_button_click(button_event)
+
+        handler._handle_edit_contract_button.assert_called_once_with(button_event, 1)
+
 
 class TestExpertLookupByCccdOrName:
     """Test edit/delete lookup flow by CCCD or expert name."""
@@ -443,3 +454,76 @@ class TestSaveActivity:
 
         mock_contract_service.add_activity.assert_awaited_once()
         assert "đã được lưu trước đó" in handler.edit_message.call_args[0][2]
+
+
+class TestEditContract:
+    """Test contract edit flow."""
+
+    async def test_shows_prefilled_edit_contract_form(
+        self,
+        handler,
+        button_event,
+        mock_contract_service,
+        mock_contract,
+        mock_expert_service,
+        mock_expert,
+    ):
+        mock_contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
+        mock_expert_service.get_active_expert_by_id = AsyncMock(return_value=mock_expert)
+
+        await handler._handle_edit_contract_button(button_event, 1)
+
+        handler.edit_message.assert_called_once()
+        assert "Đang sửa hợp đồng" in handler.edit_message.call_args[0][2]
+        embeds = handler.edit_message.call_args[1]["embeds"]
+        assert len(embeds) > 0
+        components = handler.edit_message.call_args[1]["components"]
+        component_ids = [mc.component_id for row in components for mc in row.components]
+        assert "save_edit_contract:1" in component_ids
+
+    async def test_updates_contract_from_edit_form(
+        self,
+        handler,
+        button_event,
+        mock_contract_service,
+        mock_contract,
+    ):
+        updated_contract = ContractData(
+            id=1,
+            order_id="HD-NEW-001",
+            dd=2,
+            mm=6,
+            yyyy=2024,
+            abbreviated_project="TEST-PROJECT-2",
+            additional_information="Updated info",
+            total_amount=mock_contract.total_amount,
+            tax=mock_contract.tax,
+            final_amount=mock_contract.final_amount,
+            expert_id=mock_contract.expert_id,
+            program_id=2,
+        )
+        mock_contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
+        mock_contract_service.resolve_program_code = AsyncMock(return_value=2)
+        mock_contract_service.has_contract_order_in_project = AsyncMock(return_value=False)
+        mock_contract_service.update_contract = AsyncMock(return_value=updated_contract)
+
+        await handler._handle_save_edit_contract(
+            button_event,
+            1,
+            {
+                "order_id": "HD-NEW-001",
+                "contract_date": "02/06/2024",
+                "program_code": "TEST-PROJECT-2",
+                "additional_information": "Updated info",
+            },
+        )
+
+        mock_contract_service.update_contract.assert_awaited_once()
+        saved_data = mock_contract_service.update_contract.await_args.args[1]
+        assert saved_data.order_id == "HD-NEW-001"
+        assert saved_data.dd == 2
+        assert saved_data.mm == 6
+        assert saved_data.yyyy == 2024
+        assert saved_data.abbreviated_project == "TEST-PROJECT-2"
+        assert "Đã cập nhật hợp đồng" in handler.edit_message.call_args[0][2]
+        assert "HD-NEW-001/2024/HDCG-TEST-PROJECT-2" in handler.edit_message.call_args[0][2]
