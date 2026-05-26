@@ -105,7 +105,7 @@ class TestBuildAcceptanceContext:
         context = service._build_acceptance_context(sample_contract, sample_expert, sample_activities)
 
         required_keys = [
-            "order_id", "dd", "mm", "yyyy",
+            "order_id", "order", "dd", "mm", "yyyy",
             "pronoun", "expert_name", "nationality", "address",
             "id_number", "issued_date", "issued_place",
             "email_address", "phone", "bank_account", "bank_name",
@@ -120,7 +120,7 @@ class TestBuildAcceptanceContext:
         service = WordExportService()
         context = service._build_acceptance_context(sample_contract, sample_expert, sample_activities)
 
-        assert context["order_id"] == "HDCG-2024-001"
+        assert context["order_id"] == "HDCG-2024-001/2024/HDCG-TEST-PROJECT-Additional test info"
         assert context["dd"] == 1
         assert context["mm"] == 6
         assert context["yyyy"] == 2024

@@ -13,6 +13,14 @@ def format_working_days(working_days: float) -> str:
     return f"{working_days:g}"
 
 
+def get_contract_display_name(contract: ContractData) -> str:
+    """Get full formatted contract display name."""
+    base = f"{contract.order_id}/{contract.yyyy}/HDCG-{contract.abbreviated_project or ''}"
+    if contract.additional_information:
+        base += f"-{contract.additional_information}"
+    return base
+
+
 def format_sum_activities(text: str | None) -> str:
     """Format sum_activities to lowercase and separate with semicolon."""
     if not text:
@@ -108,9 +116,12 @@ class WordExportService:
         if additional_info:
             additional_info = f"-{additional_info}"
 
+        display_name = get_contract_display_name(contract)
+
         context = {
             # Contract info
-            "order_id": contract.order_id,
+            "order_id": display_name,
+            "order": display_name,
             "dd": contract.dd,
             "mm": contract.mm,
             "yyyy": contract.yyyy,
@@ -217,9 +228,12 @@ class WordExportService:
         if additional_info:
             additional_info = f"-{additional_info}"
 
+        display_name = get_contract_display_name(contract)
+
         context = {
             # Contract info
-            "order_id": contract.order_id,
+            "order_id": display_name,
+            "order": display_name,
             "dd": contract.dd,
             "mm": contract.mm,
             "yyyy": contract.yyyy,
