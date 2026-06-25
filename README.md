@@ -8,7 +8,7 @@ FastAPI-based Mezon bot for expert, program, and contract workflows.
 - Manages experts, programs, and expert contracts
 - Exposes small health/status HTTP API
 - Generates Word documents from checked-in templates
-- Supports optional S3-compatible upload flow for generated files
+- Supports copying exported files to a local folder (SMB share)
 
 ## Documentation
 
@@ -25,9 +25,8 @@ FastAPI-based Mezon bot for expert, program, and contract workflows.
 ```bash
 uv sync
 cp .env.example .env
-docker compose -f docker-compose.db.yml up -d db
-alembic upgrade head
-python run.py --reload
+uv run alembic upgrade head
+uv run python run.py --reload
 ```
 
 Default local API:
@@ -48,7 +47,7 @@ Each top-level command returns help when invoked without subcommand. Full comman
 
 - Python 3.13
 - FastAPI
-- SQLAlchemy async + asyncpg
+- SQLAlchemy async + aiosqlite (SQLite)
 - Alembic
 - dependency-injector
 - `mezon-sdk`

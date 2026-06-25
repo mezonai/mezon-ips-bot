@@ -4,39 +4,31 @@
 
 - `.env` is loaded with override behavior
 - Required keys: `APP_ENV`, `DB_URI`, `MEZON_CLIENT_ID`, `MEZON_API_KEY`
-- Optional S3 keys live in `app/core/settings/app.py`
+- Optional SMB keys live in `app/core/settings/app.py`
 - `APP_ENV=dev` enables Swagger and ReDoc
 
-## Local Docker
+## Native Deployment
 
-Database only:
+Deploy natively using the provided automation scripts:
 
-```bash
-docker compose -f docker-compose.db.yml up -d db
-```
-
-Full stack:
+### Linux / macOS
 
 ```bash
-docker compose up
+chmod +x deploy.sh
+./deploy.sh
 ```
 
-Current compose facts:
+### Windows (PowerShell)
 
-- PostgreSQL database name: `ips-bot`
-- app command runs migrations before server start
-- app bind: `0.0.0.0:8000`
+```powershell
+.\deploy.ps1
+```
 
-## Container Image Notes
-
-`Dockerfile`:
-
-- uses `uv sync --frozen --no-dev` in builder stage
-- copies `.venv` into runtime image
-- copies `app/`, `run.py`, `alembic.ini`, and `template/`
-- default command does not auto-run migrations
-
-If deployment needs schema migration on boot, add explicit migration step outside or before app start.
+Both scripts will automatically:
+1. Load environment variables from `.env.prod`.
+2. Sync the dependencies using `uv`.
+3. Run Alembic migrations on the SQLite database.
+4. Launch the FastAPI bot natively.
 
 ## HTTP Checks
 
@@ -58,19 +50,19 @@ Expected health payload:
 
 - verify process started without Mezon login error
 - verify bot added to target Mezon server/channel
-- verify mention requirement setting
+- verify mention requirement setting (`MEZON_BOT_REQUIRE_MENTION`)
 - verify command prefix or mention alias path
 
-### Database mismatch
+### Database issues (SQLite)
 
-- confirm `DB_URI` database name matches real database
-- local defaults in repo use `ips-bot`
+- Confirm `DB_URI` starts with `sqlite+aiosqlite:///` followed by the filename (e.g. `ips-bot.db`).
+- Check file system permissions in the folder containing `ips-bot.db`. The application must have read/write access.
+- Run `uv run alembic upgrade head` manually if schema tables are missing.
 
 ### Word export issues
 
 - verify `template/Template_HDCG.docx` exists
 - verify `template/Template_BBNT.docx` exists
-- verify deployment artifact includes `template/`
 
 ### SMB local upload issues
 
