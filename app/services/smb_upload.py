@@ -9,7 +9,9 @@ from typing import Optional
 class SMBUploadService:
     """Service for copying files to a local SMB share folder."""
 
-    def __init__(self, share_path: Optional[str], public_url_base: Optional[str] = None):
+    def __init__(
+        self, share_path: Optional[str], public_url_base: Optional[str] = None
+    ):
         """Initialize SMB upload service.
 
         Args:
@@ -67,11 +69,19 @@ class SMBUploadService:
 
         # Return public URL if configured
         if self.public_url_base:
-            base = self.public_url_base.rstrip("/")
-            return f"{base}/{object_name}"
+            if "\\" in self.public_url_base:
+                base = self.public_url_base.rstrip("\\")
+                return f"{base}\\{object_name}"
+            else:
+                base = self.public_url_base.rstrip("/")
+                return f"{base}/{object_name}"
 
-        # Otherwise, return local file:// URI
-        return Path(dest_path).absolute().as_uri()
+        # Otherwise, return local file:// URI or smb:// URI for UNC paths
+        uri = Path(dest_path).absolute().as_uri()
+        if uri.startswith("file://") and not uri.startswith("file:///"):
+            # UNC path: file://server/share/file -> smb://server/share/file
+            uri = "smb:" + uri[5:]
+        return uri
 
     def delete_file(self, object_name: str) -> bool:
         """Delete a file from the SMB share folder.

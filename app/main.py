@@ -1,8 +1,10 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.settings.app import app_settings
 from app.api.v1 import health_router, bot_router
@@ -44,6 +46,11 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router, prefix=app_settings.api_v1_prefix)
     app.include_router(bot_router, prefix=app_settings.api_v1_prefix)
+
+    # Mount exports directory for serving files static
+    static_dir = app_settings.smb_share_path or "exports"
+    os.makedirs(static_dir, exist_ok=True)
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
     app.add_middleware(
         CORSMiddleware,

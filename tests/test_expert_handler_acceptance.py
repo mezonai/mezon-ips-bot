@@ -201,26 +201,115 @@ class TestExportAcceptanceDirect:
         mock_expert,
         mock_activities_multiple,
         mock_word_export_service,
+        mock_client,
     ):
         """Should export acceptance report with valid data."""
         mock_contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
         mock_expert_service.get_expert_by_id = AsyncMock(return_value=mock_expert)
-        mock_word_export_service.export_acceptance_report = MagicMock(
-            return_value="/tmp/test_bbnt.docx"
+
+        def write_dummy_file(*args, **kwargs):
+            output_path = args[3]
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            with open(output_path, "w") as f:
+                f.write("test content")
+
+        mock_word_export_service.export_acceptance_report.side_effect = write_dummy_file
+
+        await handler._export_acceptance_direct(
+            button_event, 1, mock_activities_multiple
+        )
+        mock_word_export_service.export_acceptance_report.assert_called_once()
+
+        # Verify that client.upload_file was called and channel.send was called
+        mock_client.upload_file.assert_called_once()
+        channel = await mock_client.channels.fetch(button_event.channel_id)
+        channel.send.assert_called_once()
+        call_kwargs = channel.send.call_args[1]
+        assert call_kwargs["attachments"][0].url == "https://mezon.vn/files/test.docx"
+
+    async def test_exports_with_smb_success(
+        self,
+        handler_with_smb,
+        button_event,
+        mock_contract_service,
+        mock_contract,
+        mock_expert_service,
+        mock_expert,
+        mock_activities_multiple,
+        mock_word_export_service,
+        mock_client,
+    ):
+        """Should export to SMB share and return SMB link as text without attachment."""
+        mock_contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
+        mock_expert_service.get_expert_by_id = AsyncMock(return_value=mock_expert)
+
+        def write_dummy_file(*args, **kwargs):
+            output_path = args[3]
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            with open(output_path, "w") as f:
+                f.write("test content")
+
+        mock_word_export_service.export_acceptance_report.side_effect = write_dummy_file
+
+        await handler_with_smb._export_acceptance_direct(
+            button_event, 1, mock_activities_multiple
+        )
+        mock_word_export_service.export_acceptance_report.assert_called_once()
+        # client.upload_file should not be called since SMB succeeded
+        mock_client.upload_file.assert_not_called()
+
+        # channel.send should be called with SMB URL in text and no attachments
+        channel = await mock_client.channels.fetch(button_event.channel_id)
+        channel.send.assert_called_once()
+        call_kwargs = channel.send.call_args[1]
+        assert (
+            "📂 Đường dẫn (LAN): `smb://172.16.1.100/test.docx`"
+            in call_kwargs["content"].text
+        )
+        assert "attachments" not in call_kwargs
+
+    async def test_exports_with_smb_failure_fallback(
+        self,
+        handler_with_smb,
+        button_event,
+        mock_contract_service,
+        mock_contract,
+        mock_expert_service,
+        mock_expert,
+        mock_activities_multiple,
+        mock_word_export_service,
+        mock_client,
+    ):
+        """Should fallback to Mezon upload if SMB fails."""
+        mock_contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
+        mock_expert_service.get_expert_by_id = AsyncMock(return_value=mock_expert)
+
+        def write_dummy_file(*args, **kwargs):
+            output_path = args[3]
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            with open(output_path, "w") as f:
+                f.write("test content")
+
+        mock_word_export_service.export_acceptance_report.side_effect = write_dummy_file
+
+        # Make SMB upload fail
+        handler_with_smb.smb_upload_service.upload_file.side_effect = Exception(
+            "SMB write error"
         )
 
-        test_file = "/tmp/test_bbnt.docx"
-        with open(test_file, "w") as f:
-            f.write("test content")
+        await handler_with_smb._export_acceptance_direct(
+            button_event, 1, mock_activities_multiple
+        )
+        mock_word_export_service.export_acceptance_report.assert_called_once()
+        # client.upload_file should be called as fallback
+        mock_client.upload_file.assert_called_once()
 
-        try:
-            await handler._export_acceptance_direct(
-                button_event, 1, mock_activities_multiple
-            )
-            mock_word_export_service.export_acceptance_report.assert_called_once()
-        finally:
-            if os.path.exists(test_file):
-                os.unlink(test_file)
+        # channel.send should be called with attachment
+        channel = await mock_client.channels.fetch(button_event.channel_id)
+        channel.send.assert_called_once()
+        call_kwargs = channel.send.call_args[1]
+        assert "attachments" in call_kwargs
+        assert call_kwargs["attachments"][0].url == "https://mezon.vn/files/test.docx"
 
 
 class TestHandleExportAcceptance:

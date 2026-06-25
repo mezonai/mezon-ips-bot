@@ -2347,7 +2347,7 @@ class ExpertHandler(BaseMessageHandler):
 
             # Try copy/upload to SMB if configured, fallback to Mezon upload
             file_url = None
-            if self.smb_upload_service:
+            if self.smb_upload_service and self.smb_upload_service.share_path:
                 try:
                     file_url = self.smb_upload_service.upload_file(
                         file_path=output_path,
@@ -2371,22 +2371,31 @@ class ExpertHandler(BaseMessageHandler):
             if send_key not in self._processed_activity_submits:
                 self._processed_activity_submits.add(send_key)
                 channel = await self.client.channels.fetch(event.channel_id)
-                await channel.send(
-                    content=ChannelMessageContent(
-                        t=f"✅ Đã xuất file Word thành công!\n\n"
-                        f"📄 File: `{output_filename}`\n"
-                        f"Hợp đồng: **{contract.order_id}**\n"
-                        f"Chuyên gia: **{prof.pronoun} {prof.expert_name}**"
-                    ),
-                    attachments=[
+
+                is_lan_link = file_url.startswith(("smb://", "file://", "\\\\"))
+                t_content = (
+                    f"✅ Đã xuất file Word thành công!\n\n"
+                    f"📄 File: `{output_filename}`\n"
+                    f"Hợp đồng: **{contract.order_id}**\n"
+                    f"Chuyên gia: **{prof.pronoun} {prof.expert_name}**"
+                )
+                attachments = []
+                if is_lan_link:
+                    t_content += f"\n📂 Đường dẫn (LAN): `{file_url}`"
+                else:
+                    attachments = [
                         ApiMessageAttachment(
                             filename=output_filename,
                             url=file_url,
                             filetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                             size=os.path.getsize(output_path),
                         )
-                    ],
-                )
+                    ]
+
+                kwargs = {"content": ChannelMessageContent(t=t_content)}
+                if attachments:
+                    kwargs["attachments"] = attachments
+                await channel.send(**kwargs)
 
             # Edit original message to remove buttons
             await self.edit_message(
@@ -2631,7 +2640,7 @@ class ExpertHandler(BaseMessageHandler):
 
             # Upload file
             file_url = None
-            if self.smb_upload_service:
+            if self.smb_upload_service and self.smb_upload_service.share_path:
                 try:
                     file_url = self.smb_upload_service.upload_file(
                         file_path=output_path,
@@ -2654,23 +2663,32 @@ class ExpertHandler(BaseMessageHandler):
             if send_key not in self._processed_activity_submits:
                 self._processed_activity_submits.add(send_key)
                 channel = await self.client.channels.fetch(event.channel_id)
-                await channel.send(
-                    content=ChannelMessageContent(
-                        t=f"✅ Đã xuất biên bản nghiệm thu!\n\n"
-                        f"📄 File: `{output_filename}`\n"
-                        f"Biên bản: **{acceptance_name}**\n"
-                        f"Chuyên gia: **{prof.pronoun} {prof.expert_name}**\n"
-                        f"Hoạt động: {len(activities)}"
-                    ),
-                    attachments=[
+
+                is_lan_link = file_url.startswith(("smb://", "file://", "\\\\"))
+                t_content = (
+                    f"✅ Đã xuất biên bản nghiệm thu!\n\n"
+                    f"📄 File: `{output_filename}`\n"
+                    f"Biên bản: **{acceptance_name}**\n"
+                    f"Chuyên gia: **{prof.pronoun} {prof.expert_name}**\n"
+                    f"Hoạt động: {len(activities)}"
+                )
+                attachments = []
+                if is_lan_link:
+                    t_content += f"\n📂 Đường dẫn (LAN): `{file_url}`"
+                else:
+                    attachments = [
                         ApiMessageAttachment(
                             filename=output_filename,
                             url=file_url,
                             filetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                             size=os.path.getsize(output_path),
                         )
-                    ],
-                )
+                    ]
+
+                kwargs = {"content": ChannelMessageContent(t=t_content)}
+                if attachments:
+                    kwargs["attachments"] = attachments
+                await channel.send(**kwargs)
 
             await self.edit_message(
                 event.channel_id,

@@ -37,9 +37,7 @@ async def test_contract_service_rejects_contract_date_before_program_start():
     contract_repository.get_contract_by_order_id_and_project = AsyncMock(
         return_value=None
     )
-    contract_repository.get_contract_by_unique_attrs = AsyncMock(
-        return_value=None
-    )
+    contract_repository.get_contract_by_unique_attrs = AsyncMock(return_value=None)
     program_repository = MagicMock()
     program_repository.get_program_by_id = AsyncMock(
         return_value=MagicMock(start_date=date(2026, 2, 1), end_date=date(2026, 12, 31))
@@ -71,9 +69,7 @@ async def test_contract_service_rejects_contract_date_after_program_end():
     contract_repository.get_contract_by_order_id_and_project = AsyncMock(
         return_value=None
     )
-    contract_repository.get_contract_by_unique_attrs = AsyncMock(
-        return_value=None
-    )
+    contract_repository.get_contract_by_unique_attrs = AsyncMock(return_value=None)
     program_repository = MagicMock()
     program_repository.get_program_by_id = AsyncMock(
         return_value=MagicMock(start_date=date(2026, 1, 1), end_date=date(2026, 3, 31))
@@ -105,9 +101,7 @@ async def test_contract_service_allows_contract_date_within_program_range():
     contract_repository.get_contract_by_order_id_and_project = AsyncMock(
         return_value=None
     )
-    contract_repository.get_contract_by_unique_attrs = AsyncMock(
-        return_value=None
-    )
+    contract_repository.get_contract_by_unique_attrs = AsyncMock(return_value=None)
     contract_repository.create_contract = AsyncMock(
         side_effect=lambda contract: contract
     )

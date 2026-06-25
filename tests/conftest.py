@@ -125,9 +125,8 @@ def mock_client():
 def mock_smb_upload_service():
     """Create a mock SMBUploadService."""
     service = MagicMock()
-    service.upload_file = MagicMock(
-        return_value="http://localhost:8000/static/test.docx"
-    )
+    service.share_path = "exports/smb_mock"
+    service.upload_file = MagicMock(return_value="smb://172.16.1.100/test.docx")
     return service
 
 
