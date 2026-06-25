@@ -107,7 +107,9 @@ class ExpertService:
         if expert is None:
             return None
 
-        await self._validate_unique_id_number(data.id_number, exclude_expert_id=expert_id)
+        await self._validate_unique_id_number(
+            data.id_number, exclude_expert_id=expert_id
+        )
 
         expert.pronoun = data.pronoun
         expert.expert_name = data.expert_name

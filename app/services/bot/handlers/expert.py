@@ -31,6 +31,7 @@ from app.utils import number_to_vietnamese_text
 
 class ExpertHandler(BaseMessageHandler):
     """Handler for *expert command to manage experts."""
+
     PAGE_SIZE = 10
 
     def __init__(
@@ -249,7 +250,9 @@ class ExpertHandler(BaseMessageHandler):
             bb = ButtonBuilder()
             display_name = self._format_contract_display_name(c)
             bb.add_button(
-                f"view_contract:{c.id}", f"📄 {display_name}", ButtonMessageStyle.PRIMARY
+                f"view_contract:{c.id}",
+                f"📄 {display_name}",
+                ButtonMessageStyle.PRIMARY,
             )
             built = bb.build()
             rows.append(
@@ -304,7 +307,7 @@ class ExpertHandler(BaseMessageHandler):
             "nationality",
             "Quốc tịch",
             placeholder="Việt Nam",
-            options=InputFieldOption(defaultValue="Việt Nam")
+            options=InputFieldOption(defaultValue="Việt Nam"),
         )
         form.add_input_field(
             "address",
@@ -324,7 +327,7 @@ class ExpertHandler(BaseMessageHandler):
         form.add_input_field(
             "issued_place",
             "Nơi cấp",
-            options=InputFieldOption(defaultValue="Cục CSQLHC về TTXH")
+            options=InputFieldOption(defaultValue="Cục CSQLHC về TTXH"),
         )
         form.add_input_field(
             "email_address",
@@ -367,7 +370,9 @@ class ExpertHandler(BaseMessageHandler):
         current = (p.pronoun or "").strip()
         for i, opt in enumerate(form.interactive["fields"][-1]["inputs"]["component"]):
             if opt["value"] == current:
-                form.interactive["fields"][-1]["inputs"]["component"][i]["selected"] = True
+                form.interactive["fields"][-1]["inputs"]["component"][i]["selected"] = (
+                    True
+                )
 
         form.add_input_field(
             "expert_name",
@@ -399,7 +404,7 @@ class ExpertHandler(BaseMessageHandler):
             placeholder="dd/mm/yyyy",
             options=InputFieldOption(
                 defaultValue=format_date_vn(p.issued_date) if p.issued_date else ""
-            )
+            ),
         )
         form.add_input_field(
             "issued_place",
@@ -582,7 +587,9 @@ class ExpertHandler(BaseMessageHandler):
                 f"- {expert.pronoun} {expert.expert_name} | CCCD: {expert.id_number or '—'}"
             )
         if len(experts) > 10:
-            lines.append("Hiển thị 10 kết quả đầu. Hãy nhập tên cụ thể hơn hoặc dùng CCCD.")
+            lines.append(
+                "Hiển thị 10 kết quả đầu. Hãy nhập tên cụ thể hơn hoặc dùng CCCD."
+            )
         return "\n".join(lines)
 
     def _build_expert_resolution_buttons(
@@ -603,9 +610,7 @@ class ExpertHandler(BaseMessageHandler):
                 )
             )
         rows.extend(
-            self._build_buttons(
-                [("cancel", "❌ Hủy", ButtonMessageStyle.SECONDARY)]
-            )
+            self._build_buttons([("cancel", "❌ Hủy", ButtonMessageStyle.SECONDARY)])
         )
         return rows
 
@@ -813,7 +818,9 @@ class ExpertHandler(BaseMessageHandler):
         ]
         for contract in page_items:
             expert = await self.expert_service.get_expert_by_id(contract.expert_id)
-            activities = await self.contract_service.get_activities_by_contract_id(contract.id)
+            activities = await self.contract_service.get_activities_by_contract_id(
+                contract.id
+            )
             expert_name = (
                 f"{expert.pronoun} {expert.expert_name}"
                 if expert
@@ -828,7 +835,9 @@ class ExpertHandler(BaseMessageHandler):
             lines.append("")
 
         components = self._build_pagination_components(
-            f"contract_year_page:{year}:{current_page - 1}" if current_page > 1 else None,
+            f"contract_year_page:{year}:{current_page - 1}"
+            if current_page > 1
+            else None,
             f"contract_year_page:{year}:{current_page + 1}"
             if current_page < total_pages
             else None,
@@ -857,7 +866,9 @@ class ExpertHandler(BaseMessageHandler):
         ]
         for contract in page_items:
             expert = await self.expert_service.get_expert_by_id(contract.expert_id)
-            activities = await self.contract_service.get_activities_by_contract_id(contract.id)
+            activities = await self.contract_service.get_activities_by_contract_id(
+                contract.id
+            )
             expert_name = (
                 f"{expert.pronoun} {expert.expert_name}"
                 if expert
@@ -872,7 +883,9 @@ class ExpertHandler(BaseMessageHandler):
             lines.append("")
 
         components = self._build_pagination_components(
-            f"contract_year_page:{year}:{current_page - 1}" if current_page > 1 else None,
+            f"contract_year_page:{year}:{current_page - 1}"
+            if current_page > 1
+            else None,
             f"contract_year_page:{year}:{current_page + 1}"
             if current_page < total_pages
             else None,
@@ -1736,7 +1749,9 @@ class ExpertHandler(BaseMessageHandler):
             real_amount = working_days * rate
 
             # Generate sequential activity_number (e.g., 01, 02, 03...)
-            existing_activities = await self.contract_service.get_activities_by_contract_id(contract_id)
+            existing_activities = (
+                await self.contract_service.get_activities_by_contract_id(contract_id)
+            )
             next_num = len(existing_activities) + 1
             activity_number = f"{next_num:02d}"
 
@@ -2130,7 +2145,8 @@ class ExpertHandler(BaseMessageHandler):
 
             try:
                 contract_date_str = extra_data.get(
-                    "contract_date", f"{contract.dd:02d}/{contract.mm:02d}/{contract.yyyy}"
+                    "contract_date",
+                    f"{contract.dd:02d}/{contract.mm:02d}/{contract.yyyy}",
                 ).strip()
                 d, m, y = contract_date_str.split("/")
                 dd, mm, yyyy = int(d), int(m), int(y)
@@ -2165,7 +2181,10 @@ class ExpertHandler(BaseMessageHandler):
                 )
                 return
 
-            if order_id != contract.order_id or program_code != contract.abbreviated_project:
+            if (
+                order_id != contract.order_id
+                or program_code != contract.abbreviated_project
+            ):
                 duplicate_contract = (
                     await self.contract_service.has_contract_order_in_project(
                         order_id,
@@ -2200,7 +2219,9 @@ class ExpertHandler(BaseMessageHandler):
                 program_id=program_id,
             )
 
-            updated = await self.contract_service.update_contract(contract_id, updated_data)
+            updated = await self.contract_service.update_contract(
+                contract_id, updated_data
+            )
             form_tracker.clear_form_data(str(event.message_id))
 
             await self.edit_message(

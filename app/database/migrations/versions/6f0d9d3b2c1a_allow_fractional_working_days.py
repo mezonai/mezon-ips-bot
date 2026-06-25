@@ -19,22 +19,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.alter_column(
-        "expert_contract_activities",
-        "working_days",
-        existing_type=sa.Integer(),
-        type_=sa.Float(),
-        existing_nullable=False,
-        postgresql_using="working_days::double precision",
-    )
+    with op.batch_alter_table("expert_contract_activities") as batch_op:
+        batch_op.alter_column(
+            "working_days",
+            existing_type=sa.Integer(),
+            type_=sa.Float(),
+            existing_nullable=False,
+            postgresql_using="working_days::double precision",
+        )
 
 
 def downgrade() -> None:
-    op.alter_column(
-        "expert_contract_activities",
-        "working_days",
-        existing_type=sa.Float(),
-        type_=sa.Integer(),
-        existing_nullable=False,
-        postgresql_using="working_days::integer",
-    )
+    with op.batch_alter_table("expert_contract_activities") as batch_op:
+        batch_op.alter_column(
+            "working_days",
+            existing_type=sa.Float(),
+            type_=sa.Integer(),
+            existing_nullable=False,
+            postgresql_using="working_days::integer",
+        )

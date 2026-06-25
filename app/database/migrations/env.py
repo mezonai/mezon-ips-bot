@@ -1,16 +1,31 @@
 import asyncio
 import pathlib
 import sys
+from datetime import datetime, timezone
 from logging.config import fileConfig
 
 from alembic import context
 from dotenv import load_dotenv
-from sqlalchemy import engine_from_config, pool
-from sqlalchemy.engine import Connection
+from sqlalchemy import engine_from_config, pool, event
+from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.settings.app import app_settings
 from app.database.models.rwmodel import RWModel
+
+
+# Register global listener to define "now" function for SQLite during migrations
+@event.listens_for(Engine, "connect")
+def register_sqlite_functions(dbapi_connection, connection_record):
+    if hasattr(dbapi_connection, "create_function"):
+        dbapi_connection.create_function(
+            "now", 0, lambda: datetime.now(timezone.utc).isoformat()
+        )
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.close()
+
 
 load_dotenv(override=True)
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[3]))
@@ -36,6 +51,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_as_batch=True,
     )
 
     with context.begin_transaction():
@@ -43,7 +59,11 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        render_as_batch=True,
+    )
 
     with context.begin_transaction():
         context.run_migrations()

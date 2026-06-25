@@ -104,8 +104,6 @@ def downgrade() -> None:
     op.drop_index("ix_activities_contract_id", table_name="contract_activities")
     op.drop_table("contract_activities")
     op.drop_index("ix_contracts_order_id", table_name="professional_contracts")
-    op.drop_index(
-        "ix_contracts_professional_id", table_name="professional_contracts"
-    )
+    op.drop_index("ix_contracts_professional_id", table_name="professional_contracts")
     op.drop_table("professional_contracts")
     # ### end Alembic commands ###

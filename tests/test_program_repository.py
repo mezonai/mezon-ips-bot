@@ -3,6 +3,8 @@ from datetime import date
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+# Import database connection setup to register SQLite custom UDF functions (e.g. now())
+import app.database.connect
 from app.database.models.program import Program
 from app.database.models.rwmodel import RWModel
 from app.database.repositories.program import ProgramRepository

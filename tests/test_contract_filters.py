@@ -37,8 +37,26 @@ async def test_program_contract_list_button_filters_by_program(
     )
     mock_contract_service.get_contracts_by_program_id = AsyncMock(
         return_value=[
-            ContractData(id=2, order_id="HD-002", dd=2, mm=1, yyyy=2026, abbreviated_project="PROJ-001", expert_id=1, program_id=1),
-            ContractData(id=1, order_id="HD-001", dd=1, mm=1, yyyy=2026, abbreviated_project="PROJ-001", expert_id=2, program_id=1),
+            ContractData(
+                id=2,
+                order_id="HD-002",
+                dd=2,
+                mm=1,
+                yyyy=2026,
+                abbreviated_project="PROJ-001",
+                expert_id=1,
+                program_id=1,
+            ),
+            ContractData(
+                id=1,
+                order_id="HD-001",
+                dd=1,
+                mm=1,
+                yyyy=2026,
+                abbreviated_project="PROJ-001",
+                expert_id=2,
+                program_id=1,
+            ),
         ]
     )
     mock_contract_service.get_activities_by_contract_id = AsyncMock(return_value=[])
@@ -50,7 +68,9 @@ async def test_program_contract_list_button_filters_by_program(
     )
     handler.edit_message = AsyncMock()
 
-    await handler._handle_view_program_contracts(MagicMock(channel_id=1, message_id=2), 1)
+    await handler._handle_view_program_contracts(
+        MagicMock(channel_id=1, message_id=2), 1
+    )
 
     mock_contract_service.get_contracts_by_program_id.assert_awaited_once_with(1)
     assert "HD-002" in handler.edit_message.call_args[0][2]
@@ -66,13 +86,40 @@ async def test_contract_command_lists_expert_contracts_by_year(
 ):
     mock_contract_service.get_contracts_by_year = AsyncMock(
         return_value=[
-            ContractData(id=2, order_id="HD-002", dd=2, mm=1, yyyy=2026, abbreviated_project="PROJ-002", project_name="Project 2", expert_id=2, program_id=2, total_amount=2000, final_amount=1800),
-            ContractData(id=1, order_id="HD-001", dd=1, mm=1, yyyy=2026, abbreviated_project="PROJ-001", project_name="Project 1", expert_id=1, program_id=1, total_amount=1000, final_amount=900),
+            ContractData(
+                id=2,
+                order_id="HD-002",
+                dd=2,
+                mm=1,
+                yyyy=2026,
+                abbreviated_project="PROJ-002",
+                project_name="Project 2",
+                expert_id=2,
+                program_id=2,
+                total_amount=2000,
+                final_amount=1800,
+            ),
+            ContractData(
+                id=1,
+                order_id="HD-001",
+                dd=1,
+                mm=1,
+                yyyy=2026,
+                abbreviated_project="PROJ-001",
+                project_name="Project 1",
+                expert_id=1,
+                program_id=1,
+                total_amount=1000,
+                final_amount=900,
+            ),
         ]
     )
     mock_contract_service.get_activities_by_contract_id = AsyncMock(return_value=[])
     mock_expert_service.get_expert_by_id = AsyncMock(
-        side_effect=[MagicMock(pronoun="Ông", expert_name="B"), MagicMock(pronoun="Bà", expert_name="A")]
+        side_effect=[
+            MagicMock(pronoun="Ông", expert_name="B"),
+            MagicMock(pronoun="Bà", expert_name="A"),
+        ]
     )
 
     handler = ExpertHandler(

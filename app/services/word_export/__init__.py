@@ -16,10 +16,13 @@ def format_working_days(working_days: float) -> str:
 
 def get_contract_display_name(contract: ContractData) -> str:
     """Get full formatted contract display name."""
-    base = f"{contract.order_id}/{contract.yyyy}/HDCG-{contract.abbreviated_project or ''}"
+    base = (
+        f"{contract.order_id}/{contract.yyyy}/HDCG-{contract.abbreviated_project or ''}"
+    )
     if contract.additional_information:
         base += f"-{contract.additional_information}"
     return base
+
 
 def get_acceptance_display_name(
     contract: ContractData,
@@ -27,7 +30,9 @@ def get_acceptance_display_name(
     acceptance_additional_information: str | None = None,
 ) -> str:
     """Get full formatted acceptance display name."""
-    base = f"{contract.order_id}/{contract.yyyy}/BBNT-{contract.abbreviated_project or ''}"
+    base = (
+        f"{contract.order_id}/{contract.yyyy}/BBNT-{contract.abbreviated_project or ''}"
+    )
     suffix = acceptance_round or acceptance_additional_information
     if suffix:
         base += f"-{suffix}"
@@ -37,10 +42,7 @@ def get_acceptance_display_name(
 def get_acceptance_title(acceptance_round: str | None = None) -> str:
     """Get acceptance report title."""
     round_text = f" LẦN {acceptance_round}" if acceptance_round else ""
-    return (
-        f"BIÊN BẢN BÀN GIAO VÀ NGHIỆM THU{round_text} "
-        "HỢP ĐỒNG THUÊ KHOÁN CÔNG VIỆC"
-    )
+    return f"BIÊN BẢN BÀN GIAO VÀ NGHIỆM THU{round_text} HỢP ĐỒNG THUÊ KHOÁN CÔNG VIỆC"
 
 
 def format_sum_activities(text: str | None) -> str:
@@ -48,13 +50,14 @@ def format_sum_activities(text: str | None) -> str:
     if not text:
         return ""
     import re
+
     # Lowercase
     text = text.lower()
     # Normalize separators (newlines, commas, dots, semicolons) to semicolon
-    text = re.sub(r'[\n\r,.;]+', ';', text)
+    text = re.sub(r"[\n\r,.;]+", ";", text)
     # Split by semicolon, clean, and join back
-    parts = [p.strip() for p in text.split(';') if p.strip()]
-    return '; '.join(parts)
+    parts = [p.strip() for p in text.split(";") if p.strip()]
+    return "; ".join(parts)
 
 
 class WordExportService:
@@ -136,7 +139,7 @@ class WordExportService:
         # Format additional_information with '-' prefix if not empty
         additional_info = contract.additional_information or ""
         if additional_info:
-            additional_info = f"-{additional_info}"
+            additional_info = f"- {additional_info}"
 
         display_name = get_contract_display_name(contract)
 
@@ -262,7 +265,7 @@ class WordExportService:
         # Format BBNT-specific additional_information with '-' prefix if not empty
         additional_info = acceptance_additional_information or ""
         if additional_info:
-            additional_info = f"-{additional_info}"
+            additional_info = f"- {additional_info}"
 
         contract_name = get_contract_display_name(contract)
         acceptance_name = get_acceptance_display_name(
@@ -275,7 +278,8 @@ class WordExportService:
             "acceptance_name": acceptance_title,
             "acceptance_title": acceptance_title,
             "acceptance_round": acceptance_round or "",
-            "acceptance_additional_information": acceptance_additional_information or "",
+            "acceptance_additional_information": acceptance_additional_information
+            or "",
             "order_id": contract_name,
             "order": contract_name,
             "dd": rendered_date.day,

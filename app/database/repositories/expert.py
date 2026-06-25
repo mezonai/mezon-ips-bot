@@ -20,9 +20,7 @@ class ExpertRepository(BaseRepository):
     async def get_by_id(self, expert_id: int) -> Optional[Expert]:
         """Get expert by ID."""
         async with self._get_session() as session:
-            result = await session.execute(
-                select(Expert).where(Expert.id == expert_id)
-            )
+            result = await session.execute(select(Expert).where(Expert.id == expert_id))
             return result.scalars().first()
 
     async def get_active_by_id(self, expert_id: int) -> Optional[Expert]:
@@ -71,9 +69,7 @@ class ExpertRepository(BaseRepository):
         from datetime import datetime, timezone
 
         async with self._get_session() as session:
-            result = await session.execute(
-                select(Expert).where(Expert.id == expert_id)
-            )
+            result = await session.execute(select(Expert).where(Expert.id == expert_id))
             expert = result.scalars().first()
             if expert:
                 expert.deleted_at = datetime.now(timezone.utc)

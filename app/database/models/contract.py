@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Index
 from sqlalchemy.orm import relationship
 
 from app.database.models.common import DateTimeModelMixin
@@ -18,12 +18,8 @@ class ExpertContract(RWModel, DateTimeModelMixin):
     total_amount = Column(Float, nullable=False, default=0)
     tax = Column(Float, nullable=False, default=0.1)
     final_amount = Column(Float, nullable=False, default=0)
-    expert_id = Column(
-        Integer, ForeignKey("experts.id"), nullable=False
-    )
-    program_id = Column(
-        Integer, ForeignKey("programs.id"), nullable=False
-    )
+    expert_id = Column(Integer, ForeignKey("experts.id"), nullable=False)
+    program_id = Column(Integer, ForeignKey("programs.id"), nullable=False)
 
     program = relationship("Program", back_populates="contracts")
     activities = relationship(
@@ -50,9 +46,7 @@ class ContractActivity(RWModel, DateTimeModelMixin):
     working_days = Column(Float, nullable=False, default=0)
     rate = Column(Float, nullable=False, default=0)
     real_amount = Column(Float, nullable=False, default=0)
-    contract_id = Column(
-        Integer, ForeignKey("expert_contracts.id"), nullable=False
-    )
+    contract_id = Column(Integer, ForeignKey("expert_contracts.id"), nullable=False)
 
     contract = relationship("ExpertContract", back_populates="activities")
 

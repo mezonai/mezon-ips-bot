@@ -83,76 +83,70 @@ def upgrade() -> None:
     # 4. Populate program_id by matching abbreviated_project to program_code
     op.execute(
         """
-        UPDATE expert_contracts ec
-        SET program_id = p.id
-        FROM programs p
-        WHERE ec.abbreviated_project = p.program_code
-          AND ec.deleted_at IS NULL
+        UPDATE expert_contracts
+        SET program_id = (
+            SELECT id FROM programs
+            WHERE programs.program_code = expert_contracts.abbreviated_project
+        )
+        WHERE deleted_at IS NULL
         """
     )
 
-    # 5. Make program_id NOT NULL
-    op.alter_column("expert_contracts", "program_id", nullable=False)
+    # 5. Make program_id NOT NULL, 6. Add FK, 7. Drop old columns
+    with op.batch_alter_table("expert_contracts") as batch_op:
+        batch_op.alter_column("program_id", nullable=False)
+        batch_op.create_foreign_key(
+            "fk_expert_contracts_program_id",
+            "programs",
+            ["program_id"],
+            ["id"],
+        )
+        batch_op.drop_column("project_name")
+        batch_op.drop_column("sum_activities")
+        batch_op.drop_column("activity_purpose")
+        batch_op.drop_column("end_date")
 
-    # 6. Add FK and index
-    op.create_foreign_key(
-        "fk_expert_contracts_program_id",
-        "expert_contracts", "programs",
-        ["program_id"], ["id"],
-    )
     op.create_index("ix_contracts_program_id", "expert_contracts", ["program_id"])
-
-    # 7. Drop old columns
-    op.drop_column("expert_contracts", "project_name")
-    op.drop_column("expert_contracts", "sum_activities")
-    op.drop_column("expert_contracts", "activity_purpose")
-    op.drop_column("expert_contracts", "end_date")
 
 
 def downgrade() -> None:
     # Re-add old columns
-    op.add_column(
-        "expert_contracts",
-        sa.Column("end_date", sa.Date(), nullable=True),
-    )
-    op.add_column(
-        "expert_contracts",
-        sa.Column("activity_purpose", sa.String(length=255), nullable=True),
-    )
-    op.add_column(
-        "expert_contracts",
-        sa.Column("sum_activities", sa.String(length=500), nullable=True),
-    )
-    op.add_column(
-        "expert_contracts",
-        sa.Column("project_name", sa.String(length=200), nullable=True),
-    )
+    with op.batch_alter_table("expert_contracts") as batch_op:
+        batch_op.add_column(sa.Column("end_date", sa.Date(), nullable=True))
+        batch_op.add_column(
+            sa.Column("activity_purpose", sa.String(length=255), nullable=True)
+        )
+        batch_op.add_column(
+            sa.Column("sum_activities", sa.String(length=500), nullable=True)
+        )
+        batch_op.add_column(
+            sa.Column("project_name", sa.String(length=200), nullable=True)
+        )
 
     # Migrate data back from programs
     op.execute(
         """
-        UPDATE expert_contracts ec
+        UPDATE expert_contracts
         SET
-            end_date = p.end_date,
-            activity_purpose = p.activity_purpose,
-            sum_activities = p.summary_activities,
-            project_name = p.name
-        FROM programs p
-        WHERE ec.program_id = p.id
+            end_date = (SELECT end_date FROM programs WHERE programs.id = expert_contracts.program_id),
+            activity_purpose = (SELECT activity_purpose FROM programs WHERE programs.id = expert_contracts.program_id),
+            sum_activities = (SELECT summary_activities FROM programs WHERE programs.id = expert_contracts.program_id),
+            project_name = (SELECT name FROM programs WHERE programs.id = expert_contracts.program_id)
+        WHERE program_id IS NOT NULL
         """
     )
 
-    # Fix nullability for downgrade
-    op.alter_column(
-        "expert_contracts", "end_date",
-        nullable=False,
-        server_default=sa.text("'2026-01-01'"),
-    )
-
-    # Drop FK and program_id
-    op.drop_constraint("fk_expert_contracts_program_id", "expert_contracts", type_="foreignkey")
     op.drop_index("ix_contracts_program_id", table_name="expert_contracts")
-    op.drop_column("expert_contracts", "program_id")
+
+    # Fix nullability for downgrade, drop FK and program_id
+    with op.batch_alter_table("expert_contracts") as batch_op:
+        batch_op.alter_column(
+            "end_date",
+            nullable=False,
+            server_default=sa.text("'2026-01-01'"),
+        )
+        batch_op.drop_constraint("fk_expert_contracts_program_id", type_="foreignkey")
+        batch_op.drop_column("program_id")
 
     # Drop programs table
     op.drop_table("programs")

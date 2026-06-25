@@ -50,11 +50,7 @@ class HandlerManager:
             "*contract": "Quản lý hợp đồng",
         }
         commands = sorted(
-            {
-                cmd
-                for cmd in self._command_map
-                if cmd.startswith(tuple(COMMAND_PREFIXS))
-            }
+            {cmd for cmd in self._command_map if cmd.startswith(tuple(COMMAND_PREFIXS))}
         )
 
         lines = ["📋 **Các lệnh hiện có của bot**", ""]
@@ -64,9 +60,7 @@ class HandlerManager:
         lines.extend(["", "Nhập một lệnh để bắt đầu."])
         return "\n".join(lines)
 
-    async def _reply_available_commands(
-        self, message: api_pb2.ChannelMessage
-    ) -> None:
+    async def _reply_available_commands(self, message: api_pb2.ChannelMessage) -> None:
         """Reply with available commands when the bot is invoked without content."""
         if not self._handlers:
             return
@@ -169,8 +163,9 @@ class HandlerManager:
             # Try each handler that supports button clicks
             for handler in self._command_map.values():
                 h = handler[0]
-                if (isinstance(h, (ExpertHandler, ProgramHandler)) and
-                    hasattr(h, "handle_button_click")):
+                if isinstance(h, (ExpertHandler, ProgramHandler)) and hasattr(
+                    h, "handle_button_click"
+                ):
                     await h.handle_button_click(event)
                     # Continue to next handler - they will return early if not handling
         except Exception as e:

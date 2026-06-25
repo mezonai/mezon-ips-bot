@@ -24,7 +24,9 @@ async def test_expert_list_paginates_with_next_button(
 ):
     mock_expert_service.list_all = AsyncMock(
         return_value=[
-            ExpertData(id=i, pronoun="Ông", expert_name=f"Expert {i}", id_number=f"{i:012d}")
+            ExpertData(
+                id=i, pronoun="Ông", expert_name=f"Expert {i}", id_number=f"{i:012d}"
+            )
             for i in range(1, 12)
         ]
     )
@@ -52,7 +54,11 @@ async def test_expert_list_paginates_with_next_button(
 
 @pytest.mark.asyncio
 async def test_expert_contract_list_paginates_from_detail_button(
-    mock_client, mock_contract_service, mock_expert_service, mock_program_service, mock_word_export_service
+    mock_client,
+    mock_contract_service,
+    mock_expert_service,
+    mock_program_service,
+    mock_word_export_service,
 ):
     mock_contract_service.get_contracts_by_expert_id = AsyncMock(
         return_value=[
@@ -100,7 +106,11 @@ async def test_expert_contract_list_paginates_from_detail_button(
 
 @pytest.mark.asyncio
 async def test_contract_year_list_paginates_with_buttons(
-    mock_client, mock_contract_service, mock_expert_service, mock_program_service, mock_word_export_service
+    mock_client,
+    mock_contract_service,
+    mock_expert_service,
+    mock_program_service,
+    mock_word_export_service,
 ):
     mock_contract_service.get_contracts_by_year = AsyncMock(
         return_value=[

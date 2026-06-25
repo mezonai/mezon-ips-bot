@@ -69,13 +69,9 @@ class ContractService:
 
         contract_date = date_type(data.yyyy, data.mm, data.dd)
         if program.start_date and contract_date < program.start_date:
-            raise ValueError(
-                "Ngày hợp đồng không được sớm hơn ngày bắt đầu dự án."
-            )
+            raise ValueError("Ngày hợp đồng không được sớm hơn ngày bắt đầu dự án.")
         if program.end_date and contract_date > program.end_date:
-            raise ValueError(
-                "Ngày hợp đồng không được muộn hơn ngày kết thúc dự án."
-            )
+            raise ValueError("Ngày hợp đồng không được muộn hơn ngày kết thúc dự án.")
 
     async def resolve_program_code(self, program_code: str) -> Optional[int]:
         """Resolve a program_code to its program_id. Returns None if not found."""
@@ -93,9 +89,7 @@ class ContractService:
             data.abbreviated_project,
         )
         if existing is not None:
-            raise ValueError(
-                "Số hợp đồng đã tồn tại trong cùng chương trình/dự án."
-            )
+            raise ValueError("Số hợp đồng đã tồn tại trong cùng chương trình/dự án.")
 
         existing_unique = await self._contract_repo.get_contract_by_unique_attrs(
             data.yyyy,
@@ -166,13 +160,18 @@ class ContractService:
             return None
 
         # Check unique constraints on update
-        if data.order_id != contract.order_id or data.abbreviated_project != contract.abbreviated_project:
+        if (
+            data.order_id != contract.order_id
+            or data.abbreviated_project != contract.abbreviated_project
+        ):
             duplicate = await self._contract_repo.get_contract_by_order_id_and_project(
                 data.order_id,
                 data.abbreviated_project,
             )
             if duplicate is not None and duplicate.id != contract_id:
-                raise ValueError("Số hợp đồng đã tồn tại trong cùng chương trình/dự án.")
+                raise ValueError(
+                    "Số hợp đồng đã tồn tại trong cùng chương trình/dự án."
+                )
 
         existing_unique = await self._contract_repo.get_contract_by_unique_attrs(
             data.yyyy,

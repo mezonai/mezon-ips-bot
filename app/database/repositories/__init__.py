@@ -4,4 +4,10 @@ from app.database.repositories.expert import ExpertRepository
 from app.database.repositories.contract import ContractRepository
 from app.database.repositories.program import ProgramRepository
 
-__all__ = ["BaseRepository", "GoldPriceRepository", "ExpertRepository", "ContractRepository", "ProgramRepository"]
+__all__ = [
+    "BaseRepository",
+    "GoldPriceRepository",
+    "ExpertRepository",
+    "ContractRepository",
+    "ProgramRepository",
+]

@@ -21,11 +21,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.drop_column("experts", "rate")
+    with op.batch_alter_table("experts") as batch_op:
+        batch_op.drop_column("rate")
 
 
 def downgrade() -> None:
-    op.add_column(
-        "experts",
-        sa.Column("rate", sa.Float(), nullable=True),
-    )
+    with op.batch_alter_table("experts") as batch_op:
+        batch_op.add_column(sa.Column("rate", sa.Float(), nullable=True))

@@ -10,7 +10,9 @@ from app.services.contract.service import ContractData, ContractService
 @pytest.mark.asyncio
 async def test_contract_service_rejects_duplicate_order_id_in_same_project():
     repository = MagicMock()
-    repository.get_contract_by_order_id_and_project = AsyncMock(return_value=MagicMock())
+    repository.get_contract_by_order_id_and_project = AsyncMock(
+        return_value=MagicMock()
+    )
 
     service = ContractService(repository, MagicMock())
 
@@ -32,7 +34,12 @@ async def test_contract_service_rejects_duplicate_order_id_in_same_project():
 @pytest.mark.asyncio
 async def test_contract_service_rejects_contract_date_before_program_start():
     contract_repository = MagicMock()
-    contract_repository.get_contract_by_order_id_and_project = AsyncMock(return_value=None)
+    contract_repository.get_contract_by_order_id_and_project = AsyncMock(
+        return_value=None
+    )
+    contract_repository.get_contract_by_unique_attrs = AsyncMock(
+        return_value=None
+    )
     program_repository = MagicMock()
     program_repository.get_program_by_id = AsyncMock(
         return_value=MagicMock(start_date=date(2026, 2, 1), end_date=date(2026, 12, 31))
@@ -61,7 +68,12 @@ async def test_contract_service_rejects_contract_date_before_program_start():
 @pytest.mark.asyncio
 async def test_contract_service_rejects_contract_date_after_program_end():
     contract_repository = MagicMock()
-    contract_repository.get_contract_by_order_id_and_project = AsyncMock(return_value=None)
+    contract_repository.get_contract_by_order_id_and_project = AsyncMock(
+        return_value=None
+    )
+    contract_repository.get_contract_by_unique_attrs = AsyncMock(
+        return_value=None
+    )
     program_repository = MagicMock()
     program_repository.get_program_by_id = AsyncMock(
         return_value=MagicMock(start_date=date(2026, 1, 1), end_date=date(2026, 3, 31))
@@ -90,8 +102,15 @@ async def test_contract_service_rejects_contract_date_after_program_end():
 @pytest.mark.asyncio
 async def test_contract_service_allows_contract_date_within_program_range():
     contract_repository = MagicMock()
-    contract_repository.get_contract_by_order_id_and_project = AsyncMock(return_value=None)
-    contract_repository.create_contract = AsyncMock(side_effect=lambda contract: contract)
+    contract_repository.get_contract_by_order_id_and_project = AsyncMock(
+        return_value=None
+    )
+    contract_repository.get_contract_by_unique_attrs = AsyncMock(
+        return_value=None
+    )
+    contract_repository.create_contract = AsyncMock(
+        side_effect=lambda contract: contract
+    )
     program_repository = MagicMock()
     program_repository.get_program_by_id = AsyncMock(
         return_value=MagicMock(
@@ -126,8 +145,12 @@ async def test_contract_service_allows_contract_date_within_program_range():
 @pytest.mark.asyncio
 async def test_contract_service_rejects_duplicate_unique_attrs():
     contract_repository = MagicMock()
-    contract_repository.get_contract_by_order_id_and_project = AsyncMock(return_value=None)
-    contract_repository.get_contract_by_unique_attrs = AsyncMock(return_value=MagicMock())
+    contract_repository.get_contract_by_order_id_and_project = AsyncMock(
+        return_value=None
+    )
+    contract_repository.get_contract_by_unique_attrs = AsyncMock(
+        return_value=MagicMock()
+    )
     program_repository = MagicMock()
 
     service = ContractService(contract_repository, program_repository)
@@ -183,6 +206,8 @@ async def test_acceptance_export_blocked_when_today_exceeds_contract_end_date(
     )
     handler.edit_message = AsyncMock()
 
-    await handler._export_acceptance_direct(MagicMock(channel_id=1, message_id=2), 1, [])
+    await handler._export_acceptance_direct(
+        MagicMock(channel_id=1, message_id=2), 1, []
+    )
 
     assert "vượt quá ngày kết thúc hợp đồng" in handler.edit_message.call_args[0][2]

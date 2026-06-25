@@ -2,16 +2,21 @@
 
 import os
 import pytest
-from datetime import date
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-from app.services.contract.service import ContractData, ActivityData
+from app.services.contract.service import ContractData
 from app.services.expert.service import ExpertData
 from app.services.bot.handlers.expert import ExpertHandler
 
 
 @pytest.fixture
-def handler(mock_client, mock_contract_service, mock_expert_service, mock_program_service, mock_word_export_service):
+def handler(
+    mock_client,
+    mock_contract_service,
+    mock_expert_service,
+    mock_program_service,
+    mock_word_export_service,
+):
     """Create an ExpertHandler with mocked dependencies."""
     h = ExpertHandler(
         client=mock_client,
@@ -26,7 +31,14 @@ def handler(mock_client, mock_contract_service, mock_expert_service, mock_progra
 
 
 @pytest.fixture
-def handler_with_s3(mock_client, mock_contract_service, mock_expert_service, mock_program_service, mock_word_export_service, mock_s3_upload_service):
+def handler_with_s3(
+    mock_client,
+    mock_contract_service,
+    mock_expert_service,
+    mock_program_service,
+    mock_word_export_service,
+    mock_s3_upload_service,
+):
     """Create an ExpertHandler with S3 upload service."""
     h = ExpertHandler(
         client=mock_client,
@@ -63,7 +75,9 @@ class TestHandleAcceptanceReport:
         handler.edit_message.assert_called_once()
         assert "Contract service không khả dụng" in handler.edit_message.call_args[0][2]
 
-    async def test_handles_contract_not_found(self, handler, button_event, mock_contract_service):
+    async def test_handles_contract_not_found(
+        self, handler, button_event, mock_contract_service
+    ):
         """Should show error when contract is not found."""
         mock_contract_service.get_contract_by_id = AsyncMock(return_value=None)
 
@@ -85,24 +99,37 @@ class TestHandleAcceptanceReport:
         assert "Hợp đồng chưa có hoạt động nào" in handler.edit_message.call_args[0][2]
 
     async def test_single_activity_exports_directly(
-        self, handler, button_event, mock_contract_service, mock_contract,
-        mock_activity_single, mock_word_export_service
+        self,
+        handler,
+        button_event,
+        mock_contract_service,
+        mock_contract,
+        mock_activity_single,
+        mock_word_export_service,
     ):
         """Should export directly when there's only 1 activity."""
         mock_contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
-        mock_contract_service.get_activities_by_contract_id = AsyncMock(return_value=[mock_activity_single])
+        mock_contract_service.get_activities_by_contract_id = AsyncMock(
+            return_value=[mock_activity_single]
+        )
 
         await handler._handle_acceptance_report(button_event, 1)
 
         assert handler.edit_message.called
 
     async def test_multiple_activities_shows_form(
-        self, handler, button_event, mock_contract_service, mock_contract,
-        mock_activities_multiple
+        self,
+        handler,
+        button_event,
+        mock_contract_service,
+        mock_contract,
+        mock_activities_multiple,
     ):
         """Should show radio form when there are multiple activities."""
         mock_contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
-        mock_contract_service.get_activities_by_contract_id = AsyncMock(return_value=mock_activities_multiple)
+        mock_contract_service.get_activities_by_contract_id = AsyncMock(
+            return_value=mock_activities_multiple
+        )
 
         await handler._handle_acceptance_report(button_event, 1)
 
@@ -156,16 +183,24 @@ class TestExportAcceptanceDirect:
         """Should show error when word export service is not available."""
         handler.word_export_service = None
         handler.contract_service = MagicMock()
-        handler.contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
+        handler.contract_service.get_contract_by_id = AsyncMock(
+            return_value=mock_contract
+        )
 
         await handler._export_acceptance_direct(button_event, 1, [])
 
         assert "Service không khả dụng" in handler.edit_message.call_args[0][2]
 
     async def test_exports_with_valid_data(
-        self, handler, button_event, mock_contract_service, mock_contract,
-        mock_expert_service, mock_expert, mock_activities_multiple,
-        mock_word_export_service
+        self,
+        handler,
+        button_event,
+        mock_contract_service,
+        mock_contract,
+        mock_expert_service,
+        mock_expert,
+        mock_activities_multiple,
+        mock_word_export_service,
     ):
         """Should export acceptance report with valid data."""
         mock_contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
@@ -200,9 +235,13 @@ class TestHandleExportAcceptance:
 
     async def test_handles_no_selection(self, handler, button_event):
         """Should show error when no activities are selected."""
-        await handler._handle_export_acceptance(button_event, 1, {"selected_activity_ids": []})
+        await handler._handle_export_acceptance(
+            button_event, 1, {"selected_activity_ids": []}
+        )
 
-        assert "Vui lòng chọn ít nhất 1 hoạt động" in handler.edit_message.call_args[0][2]
+        assert (
+            "Vui lòng chọn ít nhất 1 hoạt động" in handler.edit_message.call_args[0][2]
+        )
 
     async def test_handles_no_matching_activities(
         self, handler, button_event, mock_contract_service
@@ -210,9 +249,13 @@ class TestHandleExportAcceptance:
         """Should show error when selected activities don't exist."""
         mock_contract_service.get_activities_by_contract_id = AsyncMock(return_value=[])
 
-        await handler._handle_export_acceptance(button_event, 1, {"selected_activity_ids": ["999"]})
+        await handler._handle_export_acceptance(
+            button_event, 1, {"selected_activity_ids": ["999"]}
+        )
 
-        assert "Không tìm thấy hoạt động đã chọn" in handler.edit_message.call_args[0][2]
+        assert (
+            "Không tìm thấy hoạt động đã chọn" in handler.edit_message.call_args[0][2]
+        )
 
     async def test_exports_selected_activities(
         self, handler, button_event, mock_contract_service, mock_activities_multiple
@@ -224,7 +267,9 @@ class TestHandleExportAcceptance:
 
         handler._export_acceptance_direct = AsyncMock()
 
-        await handler._handle_export_acceptance(button_event, 1, {"selected_activity_ids": ["2"]})
+        await handler._handle_export_acceptance(
+            button_event, 1, {"selected_activity_ids": ["2"]}
+        )
 
         handler._export_acceptance_direct.assert_called_once()
         call_args = handler._export_acceptance_direct.call_args
@@ -242,7 +287,9 @@ class TestHandleExportAcceptance:
 
         handler._export_acceptance_direct = AsyncMock()
 
-        await handler._handle_export_acceptance(button_event, 1, {"selected_activity_ids": ["1", "3"]})
+        await handler._handle_export_acceptance(
+            button_event, 1, {"selected_activity_ids": ["1", "3"]}
+        )
 
         handler._export_acceptance_direct.assert_called_once()
         call_args = handler._export_acceptance_direct.call_args
@@ -277,9 +324,7 @@ class TestButtonRouting:
 
         handler._handle_export_acceptance.assert_called_once()
 
-    async def test_edit_contract_button_routed(
-        self, handler, button_event
-    ):
+    async def test_edit_contract_button_routed(self, handler, button_event):
         """Should route edit_contract: button to _handle_edit_contract_button."""
         button_event.button_id = "edit_contract:1"
         handler._handle_edit_contract_button = AsyncMock()
@@ -329,7 +374,9 @@ class TestExpertLookupByCccdOrName:
             expert_name="Nguyen Van A",
             id_number="999999999999",
         )
-        mock_expert_service.resolve_experts = AsyncMock(return_value=[mock_expert, other])
+        mock_expert_service.resolve_experts = AsyncMock(
+            return_value=[mock_expert, other]
+        )
 
         await handler._handle_edit(MagicMock(), "Nguyen Van A")
 
@@ -390,7 +437,9 @@ class TestExpertLookupByCccdOrName:
     ):
         """Should continue delete flow after ambiguity selection."""
         button_event.button_id = "resolve_delete:1"
-        mock_expert_service.get_active_expert_by_id = AsyncMock(return_value=mock_expert)
+        mock_expert_service.get_active_expert_by_id = AsyncMock(
+            return_value=mock_expert
+        )
 
         await handler.handle_button_click(button_event)
 
@@ -402,7 +451,9 @@ class TestExpertLookupByCccdOrName:
     ):
         """Should continue edit flow after ambiguity selection."""
         button_event.button_id = "resolve_edit:1"
-        mock_expert_service.get_active_expert_by_id = AsyncMock(return_value=mock_expert)
+        mock_expert_service.get_active_expert_by_id = AsyncMock(
+            return_value=mock_expert
+        )
 
         await handler.handle_button_click(button_event)
 
@@ -469,7 +520,9 @@ class TestEditContract:
         mock_expert,
     ):
         mock_contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
-        mock_expert_service.get_active_expert_by_id = AsyncMock(return_value=mock_expert)
+        mock_expert_service.get_active_expert_by_id = AsyncMock(
+            return_value=mock_expert
+        )
 
         await handler._handle_edit_contract_button(button_event, 1)
 
@@ -504,7 +557,9 @@ class TestEditContract:
         )
         mock_contract_service.get_contract_by_id = AsyncMock(return_value=mock_contract)
         mock_contract_service.resolve_program_code = AsyncMock(return_value=2)
-        mock_contract_service.has_contract_order_in_project = AsyncMock(return_value=False)
+        mock_contract_service.has_contract_order_in_project = AsyncMock(
+            return_value=False
+        )
         mock_contract_service.update_contract = AsyncMock(return_value=updated_contract)
 
         await handler._handle_save_edit_contract(
@@ -526,4 +581,7 @@ class TestEditContract:
         assert saved_data.yyyy == 2024
         assert saved_data.abbreviated_project == "TEST-PROJECT-2"
         assert "Đã cập nhật hợp đồng" in handler.edit_message.call_args[0][2]
-        assert "HD-NEW-001/2024/HDCG-TEST-PROJECT-2-Updated info" in handler.edit_message.call_args[0][2]
+        assert (
+            "HD-NEW-001/2024/HDCG-TEST-PROJECT-2-Updated info"
+            in handler.edit_message.call_args[0][2]
+        )

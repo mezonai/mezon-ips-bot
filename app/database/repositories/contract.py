@@ -45,7 +45,9 @@ class ContractRepository(BaseRepository):
             if additional_information is None:
                 query = query.where(ExpertContract.additional_information.is_(None))
             else:
-                query = query.where(ExpertContract.additional_information == additional_information)
+                query = query.where(
+                    ExpertContract.additional_information == additional_information
+                )
 
             result = await session.execute(query)
             return result.scalars().first()
@@ -55,14 +57,15 @@ class ContractRepository(BaseRepository):
         async with self._get_session() as session:
             result = await session.execute(
                 select(ExpertContract)
-                .options(selectinload(ExpertContract.program), selectinload(ExpertContract.activities))
+                .options(
+                    selectinload(ExpertContract.program),
+                    selectinload(ExpertContract.activities),
+                )
                 .where(ExpertContract.id == contract_id)
             )
             return result.scalars().first()
 
-    async def get_contracts_by_expert_id(
-        self, expert_id: int
-    ) -> List[ExpertContract]:
+    async def get_contracts_by_expert_id(self, expert_id: int) -> List[ExpertContract]:
         """Get all contracts for an expert."""
         async with self._get_session() as session:
             result = await session.execute(
@@ -200,7 +203,9 @@ class ContractRepository(BaseRepository):
                 return True
             return False
 
-    async def recalculate_contract_totals(self, contract_id: int) -> Optional[ExpertContract]:
+    async def recalculate_contract_totals(
+        self, contract_id: int
+    ) -> Optional[ExpertContract]:
         """Recalculate total_amount, tax, and final_amount based on activities."""
         async with self._get_session() as session:
             result = await session.execute(

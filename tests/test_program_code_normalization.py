@@ -37,7 +37,9 @@ async def test_program_service_rejects_start_date_after_end_date():
     repository = MagicMock()
     service = ProgramService(repository)
 
-    with pytest.raises(ValueError, match="Ngày bắt đầu dự án không được muộn hơn ngày kết thúc dự án"):
+    with pytest.raises(
+        ValueError, match="Ngày bắt đầu dự án không được muộn hơn ngày kết thúc dự án"
+    ):
         await service.create_program(
             ProgramData(
                 id=0,
@@ -87,7 +89,9 @@ async def test_program_service_rejects_invalid_date_range_on_update():
     repository = MagicMock()
     service = ProgramService(repository)
 
-    with pytest.raises(ValueError, match="Ngày bắt đầu dự án không được muộn hơn ngày kết thúc dự án"):
+    with pytest.raises(
+        ValueError, match="Ngày bắt đầu dự án không được muộn hơn ngày kết thúc dự án"
+    ):
         await service.update_program(
             1,
             ProgramData(

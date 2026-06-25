@@ -18,12 +18,17 @@ from mezon.protobuf.rtapi import realtime_pb2
 from .base import BaseMessageHandler, command
 from app.services.bot.form_tracker import form_tracker
 from app.services.contract.service import ContractService
-from app.services.program.service import ProgramData, ProgramService, normalize_program_code
+from app.services.program.service import (
+    ProgramData,
+    ProgramService,
+    normalize_program_code,
+)
 from app.utils.formatters import format_currency_vn, format_date_vn
 
 
 class ProgramHandler(BaseMessageHandler):
     """Handler for *program command to manage programs."""
+
     PAGE_SIZE = 10
 
     def __init__(
@@ -84,7 +89,9 @@ class ProgramHandler(BaseMessageHandler):
             ]
         )
 
-    def _build_program_form(self, existing: ProgramData | None = None) -> InteractiveBuilder:
+    def _build_program_form(
+        self, existing: ProgramData | None = None
+    ) -> InteractiveBuilder:
         """Build the interactive form for creating/editing a program."""
         title = "✏️ Sửa chương trình" if existing else "➕ Tạo chương trình mới"
         form = InteractiveBuilder(title)
@@ -92,40 +99,61 @@ class ProgramHandler(BaseMessageHandler):
         form.set_color("#5865F2")
 
         form.add_input_field(
-            "program_code", "Mã chương trình",
+            "program_code",
+            "Mã chương trình",
             placeholder="PROJ-001",
             description="Mã định danh duy nhất",
-            options=InputFieldOption(defaultValue=existing.program_code if existing else None),
+            options=InputFieldOption(
+                defaultValue=existing.program_code if existing else None
+            ),
         )
         form.add_input_field(
-            "name", "Tên chương trình",
+            "name",
+            "Tên chương trình",
             placeholder="Dự án ABC",
             description="Tên đầy đủ của chương trình",
             options=InputFieldOption(defaultValue=existing.name if existing else None),
         )
         form.add_input_field(
-            "start_date", "Ngày bắt đầu",
+            "start_date",
+            "Ngày bắt đầu",
             placeholder="dd/mm/yyyy",
             description="Ngày bắt đầu dự án (dd/mm/yyyy)",
-            options=InputFieldOption(defaultValue=format_date_vn(existing.start_date) if existing and existing.start_date else None),
+            options=InputFieldOption(
+                defaultValue=format_date_vn(existing.start_date)
+                if existing and existing.start_date
+                else None
+            ),
         )
         form.add_input_field(
-            "end_date", "Ngày kết thúc",
+            "end_date",
+            "Ngày kết thúc",
             placeholder="dd/mm/yyyy",
             description="Ngày hết hạn (dd/mm/yyyy)",
-            options=InputFieldOption(defaultValue=format_date_vn(existing.end_date) if existing and existing.end_date else None),
+            options=InputFieldOption(
+                defaultValue=format_date_vn(existing.end_date)
+                if existing and existing.end_date
+                else None
+            ),
         )
         form.add_input_field(
-            "activity_purpose", "Mục đích hoạt động",
+            "activity_purpose",
+            "Mục đích hoạt động",
             placeholder="Tư vấn, phản biện...",
             description="Mục đích của các hoạt động",
-            options=InputFieldOption(defaultValue=existing.activity_purpose if existing else None),
+            options=InputFieldOption(
+                defaultValue=existing.activity_purpose if existing else None
+            ),
         )
         form.add_input_field(
-            "summary_activities", "Tổng hợp hoạt động",
+            "summary_activities",
+            "Tổng hợp hoạt động",
             placeholder="Mô tả ngắn...",
             description="Tóm tắt các hoạt động",
-            options=InputFieldOption(textarea=True, defaultValue=existing.summary_activities if existing else None),
+            options=InputFieldOption(
+                textarea=True,
+                defaultValue=existing.summary_activities if existing else None,
+            ),
         )
         return form
 
@@ -155,7 +183,11 @@ class ProgramHandler(BaseMessageHandler):
     def _build_program_action_buttons(self, program_id: int) -> list[MessageActionRow]:
         return self._build_buttons(
             [
-                (f"view_program_contracts:{program_id}", "📋 DS hợp đồng", ButtonMessageStyle.SECONDARY),
+                (
+                    f"view_program_contracts:{program_id}",
+                    "📋 DS hợp đồng",
+                    ButtonMessageStyle.SECONDARY,
+                ),
                 (f"edit_program:{program_id}", "✏️ Sửa", ButtonMessageStyle.PRIMARY),
                 (f"delete_program:{program_id}", "🗑️ Xóa", ButtonMessageStyle.DANGER),
             ]
@@ -169,7 +201,9 @@ class ProgramHandler(BaseMessageHandler):
         )
 
     @command("*program")
-    async def handle_program(self, message, subcmd: str = None, rest: str = None) -> None:
+    async def handle_program(
+        self, message, subcmd: str = None, rest: str = None
+    ) -> None:
         """Handle *program command."""
         if not subcmd:
             await self._handle_help(message)
@@ -286,13 +320,17 @@ class ProgramHandler(BaseMessageHandler):
     async def _handle_find(self, message, code: str) -> None:
         """Find a program by code."""
         if not code:
-            await self.reply_message(message, "❌ Thiếu mã chương trình. Dùng: `*program find <mã>`")
+            await self.reply_message(
+                message, "❌ Thiếu mã chương trình. Dùng: `*program find <mã>`"
+            )
             return
 
         code = normalize_program_code(code)
         program = await self.program_service.get_program_by_code(code)
         if not program:
-            await self.reply_message(message, f"❌ Không tìm thấy chương trình với mã `{code}`.")
+            await self.reply_message(
+                message, f"❌ Không tìm thấy chương trình với mã `{code}`."
+            )
             return
 
         await self._show_program_detail(message, program)
@@ -300,13 +338,17 @@ class ProgramHandler(BaseMessageHandler):
     async def _handle_edit(self, message, code: str) -> None:
         """Show form to edit a program."""
         if not code:
-            await self.reply_message(message, "❌ Thiếu mã chương trình. Dùng: `*program edit <mã>`")
+            await self.reply_message(
+                message, "❌ Thiếu mã chương trình. Dùng: `*program edit <mã>`"
+            )
             return
 
         code = normalize_program_code(code)
         program = await self.program_service.get_program_by_code(code)
         if not program:
-            await self.reply_message(message, f"❌ Không tìm thấy chương trình với mã `{code}`.")
+            await self.reply_message(
+                message, f"❌ Không tìm thấy chương trình với mã `{code}`."
+            )
             return
 
         form = self._build_program_form(program)
@@ -314,31 +356,45 @@ class ProgramHandler(BaseMessageHandler):
             message,
             f"✏️ Sửa chương trình: **{program.program_code}**",
             embeds=[InteractiveMessageProps(**form.build())],
-            components=self._build_form_buttons(f"update_program:{program.id}", "cancel"),
+            components=self._build_form_buttons(
+                f"update_program:{program.id}", "cancel"
+            ),
         )
 
     async def _handle_delete(self, message, code: str) -> None:
         """Confirm deletion of a program."""
         if not code:
-            await self.reply_message(message, "❌ Thiếu mã chương trình. Dùng: `*program delete <mã>`")
+            await self.reply_message(
+                message, "❌ Thiếu mã chương trình. Dùng: `*program delete <mã>`"
+            )
             return
 
         code = normalize_program_code(code)
         program = await self.program_service.get_program_by_code(code)
         if not program:
-            await self.reply_message(message, f"❌ Không tìm thấy chương trình với mã `{code}`.")
+            await self.reply_message(
+                message, f"❌ Không tìm thấy chương trình với mã `{code}`."
+            )
             return
 
         await self.reply_message(
             message,
             f"⚠️ **Xác nhận xóa chương trình?**\n\n{self._format_program(program)}",
-            components=self._build_buttons([
-                (f"confirm_delete_program:{program.id}", "🗑️ Xác nhận xóa", ButtonMessageStyle.DANGER),
-                ("cancel", "❌ Hủy", ButtonMessageStyle.SECONDARY),
-            ]),
+            components=self._build_buttons(
+                [
+                    (
+                        f"confirm_delete_program:{program.id}",
+                        "🗑️ Xác nhận xóa",
+                        ButtonMessageStyle.DANGER,
+                    ),
+                    ("cancel", "❌ Hủy", ButtonMessageStyle.SECONDARY),
+                ]
+            ),
         )
 
-    async def handle_button_click(self, event: realtime_pb2.MessageButtonClicked) -> None:
+    async def handle_button_click(
+        self, event: realtime_pb2.MessageButtonClicked
+    ) -> None:
         """Handle button clicks."""
         button_id = event.button_id
         extra_data = form_tracker.parse_extra_data(event.extra_data)
@@ -379,14 +435,20 @@ class ProgramHandler(BaseMessageHandler):
         """Show contracts under one program."""
         if not self.contract_service:
             await self.edit_message(
-                event.channel_id, event.message_id, "❌ Contract service không khả dụng.", components=[]
+                event.channel_id,
+                event.message_id,
+                "❌ Contract service không khả dụng.",
+                components=[],
             )
             return
 
         program = await self.program_service.get_program_by_id(program_id)
         if not program:
             await self.edit_message(
-                event.channel_id, event.message_id, "❌ Không tìm thấy chương trình.", components=[]
+                event.channel_id,
+                event.message_id,
+                "❌ Không tìm thấy chương trình.",
+                components=[],
             )
             return
 
@@ -407,7 +469,9 @@ class ProgramHandler(BaseMessageHandler):
             f"📋 **Danh sách hợp đồng: {program.program_code} - {program.name} - Trang {current_page}/{total_pages}**\n"
         ]
         for contract in page_items:
-            activities = await self.contract_service.get_activities_by_contract_id(contract.id)
+            activities = await self.contract_service.get_activities_by_contract_id(
+                contract.id
+            )
             lines.append(
                 f"• **{contract.order_id}** ({contract.dd:02d}/{contract.mm:02d}/{contract.yyyy})\n"
                 f"  Hoạt động: {len(activities)} | Tổng: {format_currency_vn(contract.total_amount)} | Thực nhận: {format_currency_vn(contract.final_amount)}"
@@ -441,8 +505,10 @@ class ProgramHandler(BaseMessageHandler):
 
             if not program_code or not name:
                 await self.edit_message(
-                    event.channel_id, event.message_id,
-                    "❌ Thiếu mã chương trình hoặc tên.", components=[]
+                    event.channel_id,
+                    event.message_id,
+                    "❌ Thiếu mã chương trình hoặc tên.",
+                    components=[],
                 )
                 return
 
@@ -450,8 +516,10 @@ class ProgramHandler(BaseMessageHandler):
             existing = await self.program_service.get_program_by_code(program_code)
             if existing:
                 await self.edit_message(
-                    event.channel_id, event.message_id,
-                    f"❌ Mã chương trình `{program_code}` đã tồn tại.", components=[]
+                    event.channel_id,
+                    event.message_id,
+                    f"❌ Mã chương trình `{program_code}` đã tồn tại.",
+                    components=[],
                 )
                 return
 
@@ -486,7 +554,8 @@ class ProgramHandler(BaseMessageHandler):
             form_tracker.clear_form_data(str(event.message_id))
 
             await self.edit_message(
-                event.channel_id, event.message_id,
+                event.channel_id,
+                event.message_id,
                 f"✅ Đã tạo chương trình **{created.program_code}**\n\n{self._format_program(created)}",
                 components=[],
             )
@@ -497,11 +566,17 @@ class ProgramHandler(BaseMessageHandler):
         except Exception as e:
             self.logger.error("Error saving program: %s", e, exc_info=True)
             await self.edit_message(
-                event.channel_id, event.message_id, f"❌ Lỗi tạo chương trình: {e}", components=[]
+                event.channel_id,
+                event.message_id,
+                f"❌ Lỗi tạo chương trình: {e}",
+                components=[],
             )
 
     async def _handle_update_program(
-        self, event: realtime_pb2.MessageButtonClicked, program_id: int, extra_data: dict[str, Any]
+        self,
+        event: realtime_pb2.MessageButtonClicked,
+        program_id: int,
+        extra_data: dict[str, Any],
     ) -> None:
         """Handle update existing program."""
         try:
@@ -510,8 +585,10 @@ class ProgramHandler(BaseMessageHandler):
 
             if not program_code or not name:
                 await self.edit_message(
-                    event.channel_id, event.message_id,
-                    "❌ Thiếu mã chương trình hoặc tên.", components=[]
+                    event.channel_id,
+                    event.message_id,
+                    "❌ Thiếu mã chương trình hoặc tên.",
+                    components=[],
                 )
                 return
 
@@ -540,11 +617,15 @@ class ProgramHandler(BaseMessageHandler):
                 end_date=end_date,
             )
 
-            updated = await self.program_service.update_program(program_id, program_data)
+            updated = await self.program_service.update_program(
+                program_id, program_data
+            )
             if not updated:
                 await self.edit_message(
-                    event.channel_id, event.message_id,
-                    "❌ Không tìm thấy chương trình.", components=[]
+                    event.channel_id,
+                    event.message_id,
+                    "❌ Không tìm thấy chương trình.",
+                    components=[],
                 )
                 return
 
@@ -552,7 +633,8 @@ class ProgramHandler(BaseMessageHandler):
             form_tracker.clear_form_data(str(event.message_id))
 
             await self.edit_message(
-                event.channel_id, event.message_id,
+                event.channel_id,
+                event.message_id,
                 f"✅ Đã cập nhật chương trình **{updated.program_code}**\n\n{self._format_program(updated)}",
                 components=[],
             )
@@ -563,7 +645,10 @@ class ProgramHandler(BaseMessageHandler):
         except Exception as e:
             self.logger.error("Error updating program: %s", e, exc_info=True)
             await self.edit_message(
-                event.channel_id, event.message_id, f"❌ Lỗi cập nhật chương trình: {e}", components=[]
+                event.channel_id,
+                event.message_id,
+                f"❌ Lỗi cập nhật chương trình: {e}",
+                components=[],
             )
 
     async def _handle_edit_program_button(
@@ -573,17 +658,22 @@ class ProgramHandler(BaseMessageHandler):
         program = await self.program_service.get_program_by_id(program_id)
         if not program:
             await self.edit_message(
-                event.channel_id, event.message_id,
-                "❌ Không tìm thấy chương trình.", components=[]
+                event.channel_id,
+                event.message_id,
+                "❌ Không tìm thấy chương trình.",
+                components=[],
             )
             return
 
         form = self._build_program_form(program)
         await self.edit_message(
-            event.channel_id, event.message_id,
+            event.channel_id,
+            event.message_id,
             f"✏️ Sửa chương trình: **{program.program_code}**",
             embeds=[InteractiveMessageProps(**form.build())],
-            components=self._build_form_buttons(f"update_program:{program.id}", "cancel"),
+            components=self._build_form_buttons(
+                f"update_program:{program.id}", "cancel"
+            ),
         )
 
     async def _handle_delete_program_button(
@@ -593,18 +683,27 @@ class ProgramHandler(BaseMessageHandler):
         program = await self.program_service.get_program_by_id(program_id)
         if not program:
             await self.edit_message(
-                event.channel_id, event.message_id,
-                "❌ Không tìm thấy chương trình.", components=[]
+                event.channel_id,
+                event.message_id,
+                "❌ Không tìm thấy chương trình.",
+                components=[],
             )
             return
 
         await self.edit_message(
-            event.channel_id, event.message_id,
+            event.channel_id,
+            event.message_id,
             f"⚠️ **Xác nhận xóa chương trình?**\n\n{self._format_program(program)}",
-            components=self._build_buttons([
-                (f"confirm_delete_program:{program.id}", "🗑️ Xác nhận xóa", ButtonMessageStyle.DANGER),
-                ("cancel", "❌ Hủy", ButtonMessageStyle.SECONDARY),
-            ]),
+            components=self._build_buttons(
+                [
+                    (
+                        f"confirm_delete_program:{program.id}",
+                        "🗑️ Xác nhận xóa",
+                        ButtonMessageStyle.DANGER,
+                    ),
+                    ("cancel", "❌ Hủy", ButtonMessageStyle.SECONDARY),
+                ]
+            ),
         )
 
     async def _handle_confirm_delete(
@@ -614,19 +713,25 @@ class ProgramHandler(BaseMessageHandler):
         program = await self.program_service.get_program_by_id(program_id)
         if not program:
             await self.edit_message(
-                event.channel_id, event.message_id,
-                "❌ Không tìm thấy chương trình.", components=[]
+                event.channel_id,
+                event.message_id,
+                "❌ Không tìm thấy chương trình.",
+                components=[],
             )
             return
 
         success = await self.program_service.delete_program(program_id)
         if success:
             await self.edit_message(
-                event.channel_id, event.message_id,
-                f"✅ Đã xóa chương trình **{program.program_code}**", components=[]
+                event.channel_id,
+                event.message_id,
+                f"✅ Đã xóa chương trình **{program.program_code}**",
+                components=[],
             )
         else:
             await self.edit_message(
-                event.channel_id, event.message_id,
-                "❌ Không thể xóa chương trình.", components=[]
+                event.channel_id,
+                event.message_id,
+                "❌ Không thể xóa chương trình.",
+                components=[],
             )

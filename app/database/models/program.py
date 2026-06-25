@@ -21,6 +21,4 @@ class Program(RWModel, DateTimeModelMixin):
         back_populates="program",
     )
 
-    __table_args__ = (
-        Index("ix_programs_program_code", "program_code"),
-    )
+    __table_args__ = (Index("ix_programs_program_code", "program_code"),)
