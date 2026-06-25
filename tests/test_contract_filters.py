@@ -128,7 +128,7 @@ async def test_contract_command_lists_expert_contracts_by_year(
         contract_service=mock_contract_service,
         program_service=mock_program_service,
         word_export_service=mock_word_export_service,
-        s3_upload_service=None,
+        smb_upload_service=None,
     )
     handler.reply_message = AsyncMock()
 
@@ -154,7 +154,7 @@ async def test_contract_command_without_args_shows_help(
         contract_service=mock_contract_service,
         program_service=mock_program_service,
         word_export_service=mock_word_export_service,
-        s3_upload_service=None,
+        smb_upload_service=None,
     )
     handler.reply_message = AsyncMock()
 

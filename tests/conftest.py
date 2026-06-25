@@ -122,11 +122,11 @@ def mock_client():
 
 
 @pytest.fixture
-def mock_s3_upload_service():
-    """Create a mock S3UploadService."""
+def mock_smb_upload_service():
+    """Create a mock SMBUploadService."""
     service = MagicMock()
     service.upload_file = MagicMock(
-        return_value="https://s3.example.com/files/test.docx"
+        return_value="http://localhost:8000/static/test.docx"
     )
     return service
 

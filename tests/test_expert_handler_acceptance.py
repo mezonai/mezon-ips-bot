@@ -24,29 +24,29 @@ def handler(
         contract_service=mock_contract_service,
         program_service=mock_program_service,
         word_export_service=mock_word_export_service,
-        s3_upload_service=None,
+        smb_upload_service=None,
     )
     h.edit_message = AsyncMock()
     return h
 
 
 @pytest.fixture
-def handler_with_s3(
+def handler_with_smb(
     mock_client,
     mock_contract_service,
     mock_expert_service,
     mock_program_service,
     mock_word_export_service,
-    mock_s3_upload_service,
+    mock_smb_upload_service,
 ):
-    """Create an ExpertHandler with S3 upload service."""
+    """Create an ExpertHandler with SMB upload service."""
     h = ExpertHandler(
         client=mock_client,
         expert_service=mock_expert_service,
         contract_service=mock_contract_service,
         program_service=mock_program_service,
         word_export_service=mock_word_export_service,
-        s3_upload_service=mock_s3_upload_service,
+        smb_upload_service=mock_smb_upload_service,
     )
     h.edit_message = AsyncMock()
     return h

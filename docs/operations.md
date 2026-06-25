@@ -72,7 +72,7 @@ Expected health payload:
 - verify `template/Template_BBNT.docx` exists
 - verify deployment artifact includes `template/`
 
-### S3 upload issues
+### SMB local upload issues
 
-- verify endpoint, credentials, bucket, and public base URL values
-- if S3 values absent, keep export flow local-only
+- verify SMB share folder path and system write accessibility
+- if SMB settings absent, fallback to Mezon default upload will be used

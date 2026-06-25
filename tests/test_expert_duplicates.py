@@ -99,7 +99,7 @@ async def test_expert_handler_ignores_duplicate_save_submit_from_same_message(
         contract_service=None,
         program_service=None,
         word_export_service=None,
-        s3_upload_service=None,
+        smb_upload_service=None,
     )
     handler.edit_message = AsyncMock()
     mock_expert_service.create_expert = AsyncMock(

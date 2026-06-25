@@ -202,7 +202,7 @@ async def test_acceptance_export_blocked_when_today_exceeds_contract_end_date(
         contract_service=contract_service,
         program_service=mock_program_service,
         word_export_service=mock_word_export_service,
-        s3_upload_service=None,
+        smb_upload_service=None,
     )
     handler.edit_message = AsyncMock()
 

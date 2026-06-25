@@ -15,7 +15,7 @@ from app.services.expert.service import ExpertService
 from app.services.contract.service import ContractService
 from app.services.program.service import ProgramService
 from app.services.word_export import WordExportService
-from app.services.s3_upload import S3UploadService
+from app.services.smb_upload import SMBUploadService
 
 
 class Container(containers.DeclarativeContainer):
@@ -75,14 +75,10 @@ class Container(containers.DeclarativeContainer):
         WordExportService,
     )
 
-    s3_upload_service = providers.Singleton(
-        S3UploadService,
-        endpoint_url=app_settings.s3_endpoint_url,
-        access_key=app_settings.s3_access_key,
-        secret_key=app_settings.s3_secret_key,
-        bucket_name=app_settings.s3_bucket_name,
-        region=app_settings.s3_region,
-        public_url_base=app_settings.s3_public_url_base,
+    smb_upload_service = providers.Singleton(
+        SMBUploadService,
+        share_path=app_settings.smb_share_path,
+        public_url_base=app_settings.smb_public_url_base,
     )
 
     mezon_bot_service = providers.Factory(
@@ -99,7 +95,7 @@ class Container(containers.DeclarativeContainer):
         contract_service=contract_service,
         program_service=program_service,
         word_export_service=word_export_service,
-        s3_upload_service=s3_upload_service,
+        smb_upload_service=smb_upload_service,
     )
 
     program_handler = providers.Singleton(

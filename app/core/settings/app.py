@@ -37,13 +37,9 @@ class AppSettings(BaseSettings):
     mezon_api_key: str
     mezon_bot_require_mention: bool = False
 
-    # S3-compatible storage settings (optional)
-    s3_endpoint_url: str | None = None
-    s3_access_key: str | None = None
-    s3_secret_key: str | None = None
-    s3_bucket_name: str | None = None
-    s3_region: str = "auto"
-    s3_public_url_base: str | None = None
+    # SMB storage settings (optional)
+    smb_share_path: str | None = None
+    smb_public_url_base: str | None = None
 
     @property
     def fastapi_kwargs(self) -> dict[str, Any]:

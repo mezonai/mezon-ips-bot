@@ -36,7 +36,7 @@ async def test_expert_list_paginates_with_next_button(
         contract_service=MagicMock(),
         program_service=mock_program_service,
         word_export_service=mock_word_export_service,
-        s3_upload_service=None,
+        smb_upload_service=None,
     )
     handler.reply_message = AsyncMock()
 
@@ -86,7 +86,7 @@ async def test_expert_contract_list_paginates_from_detail_button(
         contract_service=mock_contract_service,
         program_service=mock_program_service,
         word_export_service=mock_word_export_service,
-        s3_upload_service=None,
+        smb_upload_service=None,
     )
     handler.edit_message = AsyncMock()
 
@@ -138,7 +138,7 @@ async def test_contract_year_list_paginates_with_buttons(
         contract_service=mock_contract_service,
         program_service=mock_program_service,
         word_export_service=mock_word_export_service,
-        s3_upload_service=None,
+        smb_upload_service=None,
     )
     handler.reply_message = AsyncMock()
     handler.edit_message = AsyncMock()

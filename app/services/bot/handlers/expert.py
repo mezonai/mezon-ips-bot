@@ -24,7 +24,7 @@ from app.services.expert.service import ExpertService, ExpertData
 from app.services.contract.service import ContractService, ContractData, ActivityData
 from app.services.program.service import ProgramService, normalize_program_code
 from app.services.word_export import WordExportService, get_acceptance_display_name
-from app.services.s3_upload import S3UploadService
+from app.services.smb_upload import SMBUploadService
 from app.utils.formatters import format_currency_vn, format_date_vn
 from app.utils import number_to_vietnamese_text
 
@@ -41,14 +41,14 @@ class ExpertHandler(BaseMessageHandler):
         contract_service: ContractService | None = None,
         program_service: ProgramService | None = None,
         word_export_service: WordExportService | None = None,
-        s3_upload_service: S3UploadService | None = None,
+        smb_upload_service: SMBUploadService | None = None,
     ):
         super().__init__(client)
         self.expert_service = expert_service
         self.contract_service = contract_service
         self.program_service = program_service
         self.word_export_service = word_export_service
-        self.s3_upload_service = s3_upload_service
+        self.smb_upload_service = smb_upload_service
         self._processed_expert_submits: set[str] = set()
         self._processed_activity_submits: set[str] = set()
 
@@ -2345,17 +2345,17 @@ class ExpertHandler(BaseMessageHandler):
                 contract, prof, activities, output_path
             )
 
-            # Try upload to S3 if configured, fallback to Mezon upload
+            # Try copy/upload to SMB if configured, fallback to Mezon upload
             file_url = None
-            if self.s3_upload_service:
+            if self.smb_upload_service:
                 try:
-                    file_url = self.s3_upload_service.upload_file(
+                    file_url = self.smb_upload_service.upload_file(
                         file_path=output_path,
                         object_name=output_filename,
                         content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     )
                 except Exception as e:
-                    self.logger.warning("S3 upload failed, trying Mezon upload: %s", e)
+                    self.logger.warning("SMB upload failed, trying Mezon upload: %s", e)
 
             # Fallback to Mezon upload if S3 failed or not configured
             if not file_url:
@@ -2631,15 +2631,15 @@ class ExpertHandler(BaseMessageHandler):
 
             # Upload file
             file_url = None
-            if self.s3_upload_service:
+            if self.smb_upload_service:
                 try:
-                    file_url = self.s3_upload_service.upload_file(
+                    file_url = self.smb_upload_service.upload_file(
                         file_path=output_path,
                         object_name=output_filename,
                         content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     )
                 except Exception as e:
-                    self.logger.warning("S3 upload failed, trying Mezon upload: %s", e)
+                    self.logger.warning("SMB upload failed, trying Mezon upload: %s", e)
 
             if not file_url:
                 upload_result = await self.client.upload_file(
